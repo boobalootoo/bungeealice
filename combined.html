@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bungee Alice</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Apply Inter font and basic styling to the body */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light background for contrast */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Full viewport height */
+            margin: 0;
+            overflow: hidden; /* Prevent scrolling if content overflows slightly */
+        }
+
+        /* Styles for the main application container */
+        .app-container {
+            display: flex;
+            flex-direction: column; /* Stack sections vertically for smaller screens */
+            align-items: center;
+            width: 100%;
+            height: 100vh; /* Take full viewport height */
+            position: relative; /* For absolute positioning of sections */
+        }
+
+        /* Shared styling for card-like sections */
+        .card-section {
+            background-color: #ffffff; /* White background */
+            border-radius: 1rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+            overflow: hidden;
+            width: 80%; /* Responsive width */
+            max-width: 600px; /* Max width for larger screens */
+            padding: 1.5rem; /* Default padding */
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
+
+        /* --- Task Planner Section Specific Styles --- */
+        #taskPlannerSection {
+            min-height: 500px; /* Ensure enough height for content */
+            display: flex; /* Keep task planner visible by default */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Custom styles for the bungee jump image animation on the task planner */
+        .bungee-jumper {
+            transition: transform 1s ease-in-out, opacity 1s ease-in-out; /* Smooth transition for diving effect */
+            transform-origin: center top; /* Rotate from the top center */
+        }
+
+        .bungee-jumper.diving {
+            transform: translateY(150vh) rotate(360deg); /* Dive off screen and rotate */
+            opacity: 0; /* Fade out as it dives */
+        }
+
+        /* Styles for task blocks within the timeline */
+        .task-block {
+            min-width: 20px; /* Minimum width for task blocks to prevent disappearance */
+            flex-grow: 1; /* Allows blocks to grow and shrink */
+            flex-shrink: 1; /* Allows blocks to grow and shrink */
+            transition: background-color 0.3s ease; /* Smooth color transition */
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+
+        /* Styles for drag and drop reordering feedback */
+        .task-block.dragging {
+            opacity: 0.5; /* Make dragged item semi-transparent */
+            border: 2px dashed #93c5fd; /* Light blue dashed border for visual feedback */
+        }
+
+        .task-block.drag-over-left {
+            border-left: 3px solid #6366f1; /* Highlight left drop target */
+        }
+
+        .task-block.drag-over-right {
+            border-right: 3px solid #6366f1; /* Highlight right drop target */
+        }
+
+        /* Styles for resize handle between blocks */
+        .resize-handle {
+            background-color: rgba(0, 0, 0, 0.2); /* Semi-transparent handle */
+            transition: background-color 0.2s ease;
+        }
+
+        .resize-handle:hover {
+            background-color: rgba(0, 0, 0, 0.4); /* Darker on hover */
+        }
+
+        /* Visual indicator for resizing */
+        .resizing-cursor {
+            cursor: ew-resize !important;
+        }
+
+        /* Styles for trash can icon */
+        #trashCan {
+            transition: all 0.3s ease;
+        }
+
+        #trashCan.drag-over-trash {
+            background-color: #ef4444; /* Red background when item is dragged over */
+            color: white;
+            transform: scale(1.1); /* Slightly enlarge when active */
+        }
+
+        /* --- Gradient Section Specific Styles --- */
+        #gradientSection {
+            position: absolute; /* Position absolutely to overlap */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* Center it */
+            width: 80%; /* Responsive width */
+            max-width: 600px; /* Max width for larger screens */
+            height: 80vh; /* Responsive height */
+            max-height: 700px; /* Max height for larger screens */
+            padding: 0; /* No padding for gradient section */
+            display: none; /* Hidden by default */
+            flex-direction: row; /* Layout left and right gradients side-by-side */
+            justify-content: center;
+            align-items: stretch;
+            overflow: hidden; /* Hide content within rounded corners */
+        }
+
+        .left-gradient {
+            flex-grow: 1; /* Takes up most of the space */
+            display: flex;
+            flex-direction: column;
+            position: relative; /* Needed for absolute positioning of the image and scroller */
+            overflow: hidden; /* Hide content outside bounds of the left-gradient */
+        }
+
+        .background-scroller {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bungee-jumper-image {
+            position: absolute;
+            left: 50%;
+            top: 0; /* Stays at the top */
+            transform: translateX(-50%); /* Keep horizontally centered */
+            width: auto; /* Allow width to adjust based on height to maintain aspect ratio */
+            height: 40%; /* Height of 2 large sections */
+            opacity: 0.8; /* Make it slightly transparent so colors show through */
+            z-index: 10; /* Ensure it's above the scrolling background */
+        }
+
+        .right-gradient {
+            width: 80px; /* Fixed width for the right sidebar-like gradient */
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid rgba(0, 0, 0, 0.1); /* Subtle separator */
+            position: relative; /* Needed for absolute positioning of the second image */
+            overflow: hidden; /* Hide content outside bounds of the right-gradient */
+        }
+
+        .bungee-jumper-image-small {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%); /* Keep horizontally centered */
+            width: auto; /* Maintain aspect ratio */
+            height: 8%; /* Height of 2 small sections (2/25 = 0.08 = 8%) */
+            opacity: 0.8; /* Make it slightly transparent */
+            z-index: 10; /* Ensure it's above the color blocks */
+        }
+
+        .color-block-left {
+            flex-shrink: 0; /* Prevent blocks from shrinking unexpectedly */
+            width: 100%;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1); /* Subtle lines between blocks */
+        }
+        .color-block-left:last-child {
+            border-bottom: none; /* No border for the last block */
+        }
+
+        .color-block-right {
+            flex-grow: 1; /* Each block takes equal vertical space */
+            min-height: 5px; /* Smaller min-height for more blocks */
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05); /* Very subtle lines */
+        }
+        .color-block-right:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Task Planner Section -->
+        <div id="taskPlannerSection" class="card-section">
+            <!-- Help Button -->
+            <button id="helpButton" class="absolute top-4 left-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out">
+                help
+            </button>
+
+            <!-- Help Modal (hidden by default) -->
+            <div id="helpModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl">
+                    <h3 class="text-xl font-bold mb-4 text-gray-900">How to Use Bungee Alice</h3>
+                    <p class="text-gray-700 mb-4">
+                        This site helps you work in 25-minute increments, inspired by the Pomodoro Technique.
+                    </p>
+                    <ul class="list-disc list-inside text-gray-700 mb-4">
+                        <li>Type your task in the text box.</li>
+                        <li>Click the '+' button to add it to the timeline.</li>
+                        <li>Tasks will split the 25 minutes evenly by default.</li>
+                        <li>**Drag the vertical lines between task blocks** to adjust their duration.</li>
+                        <li>**Drag and drop the task blocks themselves** to reorder them.</li>
+                        <li>**Drag a task block onto the trash can** to delete it.</li>
+                        <li>Click 'DIVE IN' to start your focused work session!</li>
+                    </ul>
+                    <button id="closeHelpModal" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg w-full shadow-md transition duration-300 ease-in-out">
+                        Got It!
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bungee Jump Image for Task Planner -->
+            <div class="w-48 sm:w-64 md:w-80 h-auto mb-6 flex justify-center items-center overflow-hidden">
+                <img id="bungeeJumper" src="https://raw.githubusercontent.com/boobalootoo/bungeealice/refs/heads/main/jump-removebg-preview.png" alt="Bungee jumping character silhouette" class="bungee-jumper w-full h-full object-contain" onerror="this.onerror=null;this.src='https://placehold.co/300x400/CCCCCC/333333?text=Image+Not+Found';">
+            </div>
+
+            <!-- Main Task Input -->
+            <div class="flex items-center w-full mb-6">
+                <input
+                    type="text"
+                    id="mainTaskInput"
+                    placeholder="Type what you want to do in the next 25 minutes"
+                    class="flex-grow p-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm text-gray-800"
+                />
+                <button id="addTaskButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-r-lg shadow-md transition duration-300 ease-in-out">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Timeline and Trash Can Container -->
+            <div class="flex items-center w-full mb-2">
+                <!-- Timeline Container -->
+                <div id="tasksContainer" class="flex flex-row items-stretch h-24 flex-grow bg-gray-200 rounded-l-lg overflow-hidden relative border border-gray-300">
+                    <!-- Task blocks will be injected here dynamically -->
+                </div>
+                <!-- Trash Can -->
+                <div id="trashCan" class="flex-shrink-0 w-16 h-24 flex items-center justify-center bg-gray-300 rounded-r-lg ml-1 border border-gray-300 cursor-pointer text-gray-600 hover:bg-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Time Markers -->
+            <div class="time-markers flex justify-between w-full max-w-md px-2 text-lg text-gray-600 font-semibold mb-8">
+                <span>00</span>
+                <span>05</span>
+                <span>10</span>
+                <span>15</span>
+                <span>20</span>
+                <span>25</span>
+            </div>
+
+            <!-- Dive In Button -->
+            <button id="diveInButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-lg text-xl uppercase tracking-wider shadow-lg transform hover:scale-105 transition duration-300 ease-in-out">
+                DIVE IN
+            </button>
+        </div>
+
+        <!-- Gradient Section (Initially Hidden) -->
+        <div id="gradientSection" class="card-section">
+            <!-- Left Gradient Section -->
+            <div class="left-gradient" id="leftGradient">
+                <div class="background-scroller" id="backgroundScroller">
+                    <!-- Large color blocks will be dynamically added here by JavaScript -->
+                </div>
+                <img id="largeJumper" src="https://raw.githubusercontent.com/boobalootoo/bungeealice/refs/heads/main/jump-removebg-preview.png" alt="Bungee Jumper Silhouette Large" class="bungee-jumper-image" onerror="this.onerror=null;this.src='https://placehold.co/300x400/CCCCCC/333333?text=Image+Not+Found';">
+            </div>
+
+            <!-- Right Gradient Section -->
+            <div class="right-gradient" id="rightGradient">
+                <img id="smallJumper" src="https://raw.githubusercontent.com/boobalootoo/bungeealice/refs/heads/main/jump-removebg-preview.png" alt="Bungee Jumper Silhouette Small" class="bungee-jumper-image-small" onerror="this.onerror=null;this.src='https://placehold.co/300x400/CCCCCC/333333?text=Image+Not+Found';">
+                <!-- Small color blocks will be dynamically added here by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Task Planner Section Variables & Functions ---
+        const helpButton = document.getElementById('helpButton');
+        const helpModal = document.getElementById('helpModal');
+        const closeHelpModal = document.getElementById('closeHelpModal');
+        const addTaskButton = document.getElementById('addTaskButton');
+        const tasksContainer = document.getElementById('tasksContainer');
+        const mainTaskInput = document.getElementById('mainTaskInput');
+        const diveInButton = document.getElementById('diveInButton');
+        const bungeeJumper = document.getElementById('bungeeJumper');
+        const trashCan = document.getElementById('trashCan');
+
+        // Main section containers
+        const taskPlannerSection = document.getElementById('taskPlannerSection');
+        const gradientSection = document.getElementById('gradientSection');
+
+        let tasks = []; // Array to store task data: { id, name, duration, color }
+
+        const COLORS = [
+            '#ef4444', '#f97316', '#facc15', '#22c55e',
+            '#06b6d4', '#3b82f6', '#6366f1'
+        ];
+        let colorIndex = 0;
+
+        function getNextColor() {
+            const color = COLORS[colorIndex % COLORS.length];
+            colorIndex++;
+            return color;
+        }
+
+        function renderTimeline() {
+            tasksContainer.innerHTML = '';
+            const totalMinutes = 25;
+            document.body.classList.remove('resizing-cursor');
+
+            tasks.forEach((task, index) => {
+                const taskBlock = document.createElement('div');
+                taskBlock.id = task.id;
+                taskBlock.classList.add(
+                    'task-block', 'flex', 'flex-col', 'justify-center', 'items-center',
+                    'text-white', 'text-sm', 'font-semibold',
+                    'relative', 'group', 'overflow-hidden', 'whitespace-nowrap', 'truncate',
+                    'px-2'
+                );
+                taskBlock.style.backgroundColor = task.color;
+                taskBlock.style.flexBasis = `${(task.duration / totalMinutes) * 100}%`;
+                taskBlock.style.minWidth = '20px';
+                taskBlock.setAttribute('draggable', 'true');
+
+                const taskNameDiv = document.createElement('div');
+                taskNameDiv.classList.add('p-1', 'text-center');
+                taskNameDiv.textContent = task.name;
+                taskBlock.appendChild(taskNameDiv);
+
+                const taskDurationDiv = document.createElement('div');
+                taskDurationDiv.classList.add('text-xs', 'font-normal', 'text-gray-100');
+                taskDurationDiv.textContent = `${task.duration.toFixed(1)} min`;
+                taskBlock.appendChild(taskDurationDiv);
+
+                if (index < tasks.length - 1) {
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.classList.add(
+                        'resize-handle',
+                        'absolute', 'top-0', 'right-0', 'bottom-0',
+                        'w-2', 'cursor-ew-resize', 'z-10'
+                    );
+                    taskBlock.appendChild(resizeHandle);
+                    addResizeListeners(resizeHandle, taskBlock, tasks[index], tasks[index + 1]);
+                }
+                tasksContainer.appendChild(taskBlock);
+            });
+
+            document.querySelectorAll('.task-block').forEach(block => {
+                addDragAndDropListeners(block);
+            });
+        }
+
+        function distributeTimeEvenly() {
+            if (tasks.length === 0) {
+                renderTimeline();
+                return;
+            }
+            const newDuration = 25 / tasks.length;
+            tasks.forEach(task => {
+                task.duration = newDuration;
+            });
+            renderTimeline();
+        }
+
+        let draggedItem = null;
+        function addDragAndDropListeners(taskBlock) {
+            taskBlock.addEventListener('dragstart', (e) => {
+                draggedItem = taskBlock;
+                setTimeout(() => { taskBlock.classList.add('dragging'); }, 0);
+                e.dataTransfer.setData('text/plain', taskBlock.id);
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            taskBlock.addEventListener('dragend', () => {
+                taskBlock.classList.remove('dragging');
+                draggedItem = null;
+            });
+
+            taskBlock.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const dropTarget = e.target.closest('.task-block');
+                const isOverTrash = e.target.closest('#trashCan');
+
+                document.querySelectorAll('.task-block').forEach(block => {
+                    block.classList.remove('drag-over-left', 'drag-over-right');
+                });
+                trashCan.classList.remove('drag-over-trash');
+
+                if (isOverTrash) {
+                    trashCan.classList.add('drag-over-trash');
+                } else if (draggedItem && dropTarget && draggedItem !== dropTarget) {
+                    const rect = dropTarget.getBoundingClientRect();
+                    const offset = e.clientX - rect.left;
+                    if (offset < rect.width / 2) {
+                        dropTarget.classList.add('drag-over-left');
+                    } else {
+                        dropTarget.classList.add('drag-over-right');
+                    }
+                }
+            });
+
+            taskBlock.addEventListener('dragleave', (e) => {
+                const target = e.target.closest('.task-block');
+                if (target) {
+                    target.classList.remove('drag-over-left', 'drag-over-right');
+                }
+                if (!e.relatedTarget || !e.relatedTarget.closest('#trashCan')) {
+                     trashCan.classList.remove('drag-over-trash');
+                }
+            });
+
+            taskBlock.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const dropTarget = e.target.closest('.task-block');
+                const isDroppedOnTrash = e.target.closest('#trashCan');
+
+                document.querySelectorAll('.task-block').forEach(block => {
+                    block.classList.remove('drag-over-left', 'drag-over-right');
+                });
+                trashCan.classList.remove('drag-over-trash');
+
+                if (draggedItem && isDroppedOnTrash) {
+                    const taskIdToDelete = draggedItem.id;
+                    const indexToDelete = tasks.findIndex(t => t.id === taskIdToDelete);
+                    if (indexToDelete > -1) {
+                        tasks.splice(indexToDelete, 1);
+                        distributeTimeEvenly();
+                    }
+                } else if (draggedItem && dropTarget && draggedItem !== dropTarget) {
+                    const draggedIndex = tasks.findIndex(t => t.id === draggedItem.id);
+                    const dropIndex = tasks.findIndex(t => t.id === dropTarget.id);
+
+                    const [removed] = tasks.splice(draggedIndex, 1);
+                    if (e.clientX - dropTarget.getBoundingClientRect().left < dropTarget.offsetWidth / 2) {
+                        tasks.splice(dropIndex, 0, removed);
+                    } else {
+                        tasks.splice(dropIndex + 1, 0, removed);
+                    }
+                    renderTimeline();
+                }
+            });
+        }
+
+        let isResizing = false;
+        let currentBlock = null;
+        let nextBlock = null;
+        let currentTaskData = null;
+        let nextTaskData = null;
+        let startX = 0;
+        let startWidthCurrent = 0;
+        let startWidthNext = 0;
+
+        function addResizeListeners(handle, block, taskData, nextTaskDataRef) {
+            handle.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                currentBlock = block;
+                nextBlock = block.nextSibling;
+                currentTaskData = taskData;
+                nextTaskData = nextTaskDataRef;
+
+                startX = e.clientX;
+                startWidthCurrent = currentBlock.offsetWidth;
+                startWidthNext = nextBlock.offsetWidth;
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+                document.body.classList.add('resizing-cursor');
+                e.preventDefault();
+            });
+        }
+
+        function onMouseMove(e) {
+            if (!isResizing) return;
+
+            const deltaX = e.clientX - startX;
+            const containerWidth = tasksContainer.offsetWidth;
+            const minPixelWidth = 20;
+
+            let newWidthCurrentPx = startWidthCurrent + deltaX;
+            let newWidthNextPx = startWidthNext - deltaX;
+
+            if (newWidthCurrentPx < minPixelWidth) {
+                newWidthCurrentPx = minPixelWidth;
+                newWidthNextPx = startWidthCurrent + startWidthNext - minPixelWidth;
+            }
+            if (newWidthNextPx < minPixelWidth) {
+                newWidthNextPx = minPixelWidth;
+                newWidthCurrentPx = startWidthCurrent + startWidthNext - minPixelWidth;
+            }
+
+            currentBlock.style.flexBasis = `${(newWidthCurrentPx / containerWidth) * 100}%`;
+            nextBlock.style.flexBasis = `${(newWidthNextPx / containerWidth) * 100}%`;
+
+            const totalMinutes = 25;
+            currentTaskData.duration = (newWidthCurrentPx / containerWidth) * totalMinutes;
+            nextTaskData.duration = (newWidthNextPx / containerWidth) * totalMinutes;
+
+            currentBlock.querySelector('.text-xs').textContent = `${currentTaskData.duration.toFixed(1)} min`;
+            nextBlock.querySelector('.text-xs').textContent = `${nextTaskData.duration.toFixed(1)} min`;
+        }
+
+        function onMouseUp() {
+            isResizing = false;
+            currentBlock = null;
+            nextBlock = null;
+            currentTaskData = null;
+            nextTaskData = null;
+
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.body.classList.remove('resizing-cursor');
+            renderTimeline();
+        }
+
+        // --- Gradient Section Variables & Functions ---
+        // Helper function to convert hex color string to an RGB object
+        function hexToRgb(hex) {
+            const bigint = parseInt(hex.slice(1), 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return { r, g, b };
+        }
+
+        // Helper function to convert RGB values to a hex color string
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0').toUpperCase();
+        }
+
+        /**
+         * Generates a gradient of colors between two hex colors.
+         * @param {string} startHex The starting hex color (e.g., '#RRGGBB').
+         * @param {string} endHex The ending hex color (e.g., '#RRGGBB').
+         * @param {number} steps The number of steps in the gradient (inclusive of start and end).
+         * @returns {string[]} An array of hex color strings.
+         */
+        function generateGradient(startHex, endHex, steps) {
+            const startRgb = hexToRgb(startHex);
+            const endRgb = hexToRgb(endHex);
+            const colors = [];
+
+            for (let i = 0; i < steps; i++) {
+                const factor = steps === 1 ? 0 : i / (steps - 1);
+                const r = Math.round(startRgb.r + factor * (endRgb.r - startRgb.r));
+                const g = Math.round(startRgb.g + factor * (endRgb.g - startRgb.g));
+                const b = Math.round(startRgb.b + factor * (endRgb.b - startRgb.b));
+                colors.push(rgbToHex(r, g, b));
+            }
+            return colors;
+        }
+
+        const rightGradientSegments = [
+            { start: '#5C0000', end: '#E50000' }, { start: '#E65C00', end: '#FF9900' },
+            { start: '#E6A300', end: '#FFFF00' }, { start: '#008000', end: '#00FF00' },
+            { start: '#005050', end: '#00C0C0' }
+        ];
+
+        let allGradientColors = [];
+        rightGradientSegments.forEach(segment => {
+            allGradientColors = allGradientColors.concat(generateGradient(segment.start, segment.end, 5));
+        });
+
+        const leftColors = allGradientColors;
+        const rightColors = allGradientColors;
+
+        const leftGradientContainer = document.getElementById('leftGradient');
+        const backgroundScroller = document.getElementById('backgroundScroller');
+        const rightGradientContainer = document.getElementById('rightGradient');
+        const largeJumper = document.getElementById('largeJumper');
+        const smallJumper = document.getElementById('smallJumper');
+
+        let lastTimestamp = 0;
+        let animationFrameId;
+        let currentY_small = 0;
+        let scrollOffset_large = 0;
+        let speed_small = 0;
+        let scrollSpeed_large = 0;
+        let leftContainerHeight = 0;
+        let rightContainerHeight = 0;
+        let largeJumperHeightPx = 0;
+        let smallJumperHeightPx = 0;
+        let largeSectionHeightPx = 0;
+        let smallSectionHeightPx = 0;
+        let imagesLoadedCount = 0;
+        const totalImages = 2; // largeJumper, smallJumper in the gradient section
+
+        function populateRightGradient() {
+            const existingBlocks = rightGradientContainer.querySelectorAll('.color-block-right');
+            existingBlocks.forEach(block => block.remove());
+
+            smallSectionHeightPx = rightGradientContainer.offsetHeight / 25; // 25 sections in the small area
+
+            rightColors.forEach(color => {
+                const div = document.createElement('div');
+                div.classList.add('color-block-right');
+                div.style.height = `${smallSectionHeightPx}px`;
+                div.style.backgroundColor = color;
+                rightGradientContainer.appendChild(div);
+            });
+        }
+
+        function initializeAnimation() {
+            leftContainerHeight = leftGradientContainer.offsetHeight;
+            rightContainerHeight = rightGradientContainer.offsetHeight;
+
+            backgroundScroller.innerHTML = '';
+            largeSectionHeightPx = leftContainerHeight / 5;
+
+            leftColors.forEach(color => {
+                const div = document.createElement('div');
+                div.classList.add('color-block-left');
+                div.style.height = `${largeSectionHeightPx}px`;
+                div.style.backgroundColor = color;
+                backgroundScroller.appendChild(div);
+            });
+
+            backgroundScroller.style.height = `${largeSectionHeightPx * 25}px`;
+
+            populateRightGradient(); // Ensure 25 blocks in the right gradient
+
+            largeJumper.style.top = '0px';
+            smallJumper.style.top = '0px'; // Reset small jumper to top for animation
+
+            // Recalculate jumper image heights after they become visible and rendered
+            largeJumperHeightPx = largeJumper.offsetHeight;
+            smallJumperHeightPx = smallJumper.offsetHeight;
+
+            scrollOffset_large = 0; // Reset scroll offset
+
+            scrollSpeed_large = largeSectionHeightPx / (60 * 1000); // px per ms
+            speed_small = smallSectionHeightPx / (60 * 1000); // px per ms
+
+            lastTimestamp = performance.now();
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        function animate(timestamp) {
+            const deltaTime = timestamp - lastTimestamp;
+            lastTimestamp = timestamp;
+
+            currentY_small += speed_small * deltaTime;
+            scrollOffset_large -= scrollSpeed_large * deltaTime;
+
+            smallJumper.style.top = `${currentY_small}px`;
+            backgroundScroller.style.transform = `translateY(${scrollOffset_large}px)`;
+
+            if (currentY_small > rightContainerHeight) {
+                currentY_small = -smallJumperHeightPx;
+            }
+
+            const totalScrollableHeightLarge = (leftColors.length - 5) * largeSectionHeightPx;
+            if (Math.abs(scrollOffset_large) >= totalScrollableHeightLarge) {
+                scrollOffset_large = 0;
+            }
+
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        // --- Event Listeners and Initial Setup ---
+
+        helpButton.addEventListener('click', () => {
+            helpModal.classList.remove('hidden');
+        });
+
+        closeHelpModal.addEventListener('click', () => {
+            helpModal.classList.add('hidden');
+        });
+
+        addTaskButton.addEventListener('click', () => {
+            let taskName = mainTaskInput.value.trim();
+            if (taskName === '') {
+                taskName = `Task ${tasks.length + 1}`;
+            }
+
+            const newTask = {
+                id: `task-${Date.now()}`,
+                name: taskName,
+                duration: 0,
+                color: getNextColor()
+            };
+            tasks.push(newTask);
+
+            distributeTimeEvenly();
+            mainTaskInput.value = '';
+        });
+
+        diveInButton.addEventListener('click', () => {
+            // Start bungee jumper animation
+            bungeeJumper.classList.add('diving');
+
+            bungeeJumper.addEventListener('transitionend', () => {
+                // Hide task planner section
+                taskPlannerSection.style.display = 'none';
+                // Show gradient section
+                gradientSection.style.display = 'flex'; // Use flex to maintain layout
+
+                // Re-initialize gradient animation when it becomes visible
+                // This ensures correct dimensions are captured after layout change
+                initializeAnimation();
+            }, { once: true });
+        });
+
+        trashCan.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            trashCan.classList.add('drag-over-trash');
+        });
+
+        trashCan.addEventListener('dragleave', () => {
+            trashCan.classList.remove('drag-over-trash');
+        });
+
+        trashCan.addEventListener('drop', (e) => {
+            e.preventDefault();
+            trashCan.classList.remove('drag-over-trash');
+
+            const data = e.dataTransfer.getData('text/plain');
+            const taskIdToDelete = data;
+
+            const indexToDelete = tasks.findIndex(t => t.id === taskIdToDelete);
+            if (indexToDelete > -1) {
+                tasks.splice(indexToDelete, 1);
+                distributeTimeEvenly();
+            }
+        });
+
+        // Initial setup on page load: Render the task planner.
+        window.onload = () => {
+            renderTimeline();
+            // The gradient section is initially hidden via CSS
+        };
+
+        // Re-initialize gradient animation parameters if the window is resized
+        // This is important because heights might change for the gradient section
+        window.addEventListener('resize', () => {
+            if (gradientSection.style.display === 'flex') { // Only re-initialize if gradient section is active
+                cancelAnimationFrame(animationFrameId); // Stop current animation
+                // Directly call initializeAnimation, it will handle recalculations and restart animation
+                initializeAnimation();
+            }
+        });
+    </script>
+</body>
+</html>
