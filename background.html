@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Palette</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light background for contrast */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Full viewport height */
+            margin: 0;
+            overflow: hidden; /* Prevent scrolling if content overflows slightly */
+        }
+        .main-container {
+            display: flex;
+            background-color: #ffffff; /* White background for the main card */
+            border-radius: 1rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+            overflow: hidden; /* Keep content within rounded corners */
+            width: 80%; /* Responsive width */
+            max-width: 600px; /* Max width for larger screens */
+            height: 80vh; /* Responsive height */
+            max-height: 700px; /* Max height for larger screens */
+        }
+        .left-gradient {
+            flex-grow: 1; /* Takes up most of the space */
+            display: flex;
+            flex-direction: column;
+        }
+        .right-gradient {
+            width: 80px; /* Fixed width for the right sidebar-like gradient */
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid rgba(0, 0, 0, 0.1); /* Subtle separator */
+        }
+        .color-block-left {
+            flex-grow: 1; /* Each block takes equal vertical space */
+            min-height: 10px; /* Ensure small blocks are visible */
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1); /* Subtle lines between blocks */
+        }
+        .color-block-left:last-child {
+            border-bottom: none; /* No border for the last block */
+        }
+        .color-block-right {
+            flex-grow: 1; /* Each block takes equal vertical space */
+            min-height: 5px; /* Smaller min-height for more blocks */
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05); /* Very subtle lines */
+        }
+        .color-block-right:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Left Gradient Section -->
+        <div class="left-gradient" id="leftGradient"></div>
+
+        <!-- Right Gradient Section -->
+        <div class="right-gradient" id="rightGradient"></div>
+    </div>
+
+    <script>
+        // Helper function to convert hex color to RGB object
+        function hexToRgb(hex) {
+            const bigint = parseInt(hex.slice(1), 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return { r, g, b };
+        }
+
+        // Helper function to convert RGB object to hex color
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0').toUpperCase();
+        }
+
+        /**
+         * Generates a gradient of colors between two hex colors.
+         * @param {string} startHex The starting hex color (e.g., '#RRGGBB').
+         * @param {string} endHex The ending hex color (e.g., '#RRGGBB').
+         * @param {number} steps The number of steps in the gradient (inclusive of start and end).
+         * @returns {string[]} An array of hex color strings.
+         */
+        function generateGradient(startHex, endHex, steps) {
+            const startRgb = hexToRgb(startHex);
+            const endRgb = hexToRgb(endHex);
+            const colors = [];
+
+            for (let i = 0; i < steps; i++) {
+                const factor = steps === 1 ? 0 : i / (steps - 1); // Avoid division by zero if steps is 1
+                const r = Math.round(startRgb.r + factor * (endRgb.r - startRgb.r));
+                const g = Math.round(startRgb.g + factor * (endRgb.g - startRgb.g));
+                const b = Math.round(startRgb.b + factor * (endRgb.b - startRgb.b));
+                colors.push(rgbToHex(r, g, b));
+            }
+            return colors;
+        }
+
+        // Define the main colors for the left gradient based on the new image (more distinct reds/pinks)
+        const leftColors = [
+            '#6C0000', // Darker Red
+            '#D20000', // Pure Red
+            '#F44040', // Medium Red/Pink
+            '#F78181', // Lighter Pink
+            '#FDDEDE'  // Very Light Pink
+        ];
+
+        // Define the segments for the right gradient. Each segment will have exactly 5 colors
+        // that stay within the specified color family, as per the new image.
+        const rightGradientSegments = [
+            // Segment 1: Red (from dark red to a bright red, no orange)
+            { start: '#5C0000', end: '#E50000' },
+            // Segment 2: Orange (from dark orange to a bright orange, no yellow/red)
+            { start: '#E65C00', end: '#FF9900' },
+            // Segment 3: Yellow (from dark yellow to a bright yellow, no orange)
+            { start: '#E6A300', end: '#FFFF00' },
+            // Segment 4: Green (from dark green to a bright green, no blue)
+            { start: '#008000', end: '#00FF00' },
+            // Segment 5: Blue/Teal (from dark teal to a brighter blue/teal)
+            { start: '#005050', end: '#00C0C0' }
+        ];
+
+        let allRightColors = [];
+        rightGradientSegments.forEach(segment => {
+            // Generate 5 colors for each segment
+            allRightColors = allRightColors.concat(generateGradient(segment.start, segment.end, 5));
+        });
+
+        // Get the container elements
+        const leftGradientContainer = document.getElementById('leftGradient');
+        const rightGradientContainer = document.getElementById('rightGradient');
+
+        // Populate the left gradient
+        leftColors.forEach(color => {
+            const div = document.createElement('div');
+            div.classList.add('color-block-left');
+            div.style.backgroundColor = color;
+            leftGradientContainer.appendChild(div);
+        });
+
+        // Populate the right gradient
+        allRightColors.forEach(color => {
+            const div = document.createElement('div');
+            div.classList.add('color-block-right');
+            div.style.backgroundColor = color;
+            rightGradientContainer.appendChild(div);
+        });
+    </script>
+</body>
+</html>
