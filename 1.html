@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bungee Alice - Get Things Done</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define Inter font for the entire body */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light background for a clean look */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Full viewport height */
+            margin: 0;
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+        /* Custom styles for the bungee jump image animation */
+        .bungee-jumper {
+            transition: transform 1s ease-in-out; /* Smooth transition for diving effect */
+            transform-origin: center top; /* Rotate from the top center */
+            /* Add initial rotation to match the example image if needed */
+            /* transform: rotate(-10deg); */
+        }
+
+        .bungee-jumper.diving {
+            transform: translateY(150vh) rotate(360deg); /* Dive off screen and rotate */
+            opacity: 0; /* Fade out as it dives */
+        }
+
+        /* Custom styling for range input (slider) for better appearance */
+        input[type="range"] {
+            -webkit-appearance: none; /* Remove default styling */
+            width: 100%;
+            height: 8px;
+            background: #d1d5db; /* Light gray track */
+            outline: none;
+            border-radius: 4px;
+            opacity: 0.7;
+            transition: opacity .2s;
+            margin: 0 8px; /* Margin to separate from numbers */
+        }
+
+        input[type="range"]:hover {
+            opacity: 1;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4f46e5; /* Primary purple thumb */
+            cursor: pointer;
+            border-radius: 50%; /* Circular thumb */
+            border: 2px solid #fff; /* White border for contrast */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #4f46e5;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Style for the time markers below the slider */
+        .time-markers {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0 16px; /* Padding to align with slider */
+            color: #6b7280; /* Gray text color */
+            font-size: 0.875rem; /* Small font size */
+        }
+
+        /* Styles for drag and drop feedback */
+        .task-section {
+            cursor: grab; /* Indicate draggable */
+        }
+
+        .task-section.dragging {
+            opacity: 0.5; /* Make dragged item semi-transparent */
+            border: 2px dashed #93c5fd; /* Light blue dashed border for visual feedback */
+        }
+
+        .task-section.drag-over {
+            border: 2px solid #6366f1; /* Highlight drop target */
+            background-color: #e0e7ff; /* Light indigo background */
+        }
+    </style>
+</head>
+<body>
+    <div class="flex flex-col items-center p-4 sm:p-6 md:p-8 w-full max-w-md bg-white rounded-xl shadow-lg relative">
+        <!-- Help Button -->
+        <button id="helpButton" class="absolute top-4 left-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out">
+            help
+        </button>
+
+        <!-- Help Modal (hidden by default) -->
+        <div id="helpModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl">
+                <h3 class="text-xl font-bold mb-4 text-gray-900">How to Use Bungee Alice</h3>
+                <p class="text-gray-700 mb-4">
+                    This site helps you work in 25-minute increments, inspired by the Pomodoro Technique.
+                </p>
+                <ul class="list-disc list-inside text-gray-700 mb-4">
+                    <li>Type your main task in the text box.</li>
+                    <li>Click the '+' button to add more sub-tasks.</li>
+                    <li>Use the sliders to allocate time for each task within the 25-minute total.</li>
+                    <li>You can now **drag and drop** tasks to reorder them!</li>
+                    <li>Click 'DIVE IN' to start your focused work session!</li>
+                </ul>
+                <button id="closeHelpModal" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg w-full shadow-md transition duration-300 ease-in-out">
+                    Got It!
+                </button>
+            </div>
+        </div>
+
+        <!-- Bungee Jump Image -->
+        <div class="w-48 sm:w-64 md:w-80 h-auto mb-6 flex justify-center items-center overflow-hidden">
+            <img id="bungeeJumper" src="https://raw.githubusercontent.com/boobalootoo/bungeealice/refs/heads/main/jump-removebg-preview.png" alt="Bungee jumping character silhouette" class="bungee-jumper w-full h-full object-contain" onerror="this.onerror=null;this.src='https://placehold.co/300x400/CCCCCC/333333?text=Image+Not+Found';">
+        </div>
+
+        <!-- Main Task Input -->
+        <div class="flex items-center w-full mb-6">
+            <input
+                type="text"
+                id="mainTaskInput"
+                placeholder="Type what you want to do in the next 25 minutes"
+                class="flex-grow p-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm text-gray-800"
+            />
+            <button id="addTaskButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-r-lg shadow-md transition duration-300 ease-in-out">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Container for dynamically added tasks -->
+        <div id="tasksContainer" class="w-full flex flex-col items-center space-y-4 mb-8">
+            <!-- Initial task input for the main task, mirroring added sections -->
+            <div id="initialTaskSection" class="task-section w-full bg-gray-100 p-3 rounded-lg shadow-inner flex flex-col space-y-2" draggable="true">
+                <input type="text" value="Main Task" class="task-name-input w-full p-2 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 text-gray-700 bg-white" readonly>
+                <div class="flex items-center w-full">
+                    <span class="text-sm text-gray-600">0</span>
+                    <input type="range" min="0" max="25" value="25" class="task-slider flex-grow">
+                    <span class="text-sm text-gray-600">25</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dive In Button -->
+        <button id="diveInButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-lg text-xl uppercase tracking-wider shadow-lg transform hover:scale-105 transition duration-300 ease-in-out">
+            DIVE IN
+        </button>
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const helpButton = document.getElementById('helpButton');
+        const helpModal = document.getElementById('helpModal');
+        const closeHelpModal = document.getElementById('closeHelpModal');
+        const addTaskButton = document.getElementById('addTaskButton');
+        const tasksContainer = document.getElementById('tasksContainer');
+        const mainTaskInput = document.getElementById('mainTaskInput');
+        const diveInButton = document.getElementById('diveInButton');
+        const bungeeJumper = document.getElementById('bungeeJumper');
+        const initialTaskSection = document.getElementById('initialTaskSection'); // Reference to the initial task section
+
+        let taskCount = 0; // To keep track of dynamically added tasks
+        let draggedItem = null; // Variable to store the currently dragged item
+
+        // --- Helper Functions for Drag and Drop ---
+
+        /**
+         * Attaches drag and drop event listeners to a task section.
+         * @param {HTMLElement} taskSection The task section element.
+         */
+        function addDragAndDropListeners(taskSection) {
+            taskSection.addEventListener('dragstart', (e) => {
+                // Set the dragged element
+                draggedItem = taskSection;
+                // Add a class for visual feedback during drag
+                setTimeout(() => {
+                    taskSection.classList.add('dragging');
+                }, 0); // Use setTimeout to avoid flickering
+                // Set data to be transferred (optional, but good practice)
+                e.dataTransfer.setData('text/plain', taskSection.id || 'task');
+            });
+
+            taskSection.addEventListener('dragend', () => {
+                // Clean up visual feedback after drag ends
+                taskSection.classList.remove('dragging');
+                draggedItem = null; // Clear the dragged item
+            });
+
+            taskSection.addEventListener('dragover', (e) => {
+                // Prevent default to allow dropping
+                e.preventDefault();
+                // Add visual feedback to indicate a valid drop target
+                if (e.target.closest('.task-section') && e.target.closest('.task-section') !== draggedItem) {
+                    const currentTarget = e.target.closest('.task-section');
+                    // Determine if dragging above or below the target
+                    const rect = currentTarget.getBoundingClientRect();
+                    const offset = e.clientY - rect.top;
+                    if (offset < rect.height / 2) {
+                        // Dragging over the top half, insert before
+                        currentTarget.classList.add('drag-over-top');
+                        currentTarget.classList.remove('drag-over-bottom');
+                    } else {
+                        // Dragging over the bottom half, insert after
+                        currentTarget.classList.add('drag-over-bottom');
+                        currentTarget.classList.remove('drag-over-top');
+                    }
+                    currentTarget.classList.add('drag-over');
+                }
+            });
+
+            taskSection.addEventListener('dragleave', (e) => {
+                // Remove visual feedback when leaving a drop target
+                if (e.target.closest('.task-section')) {
+                    e.target.closest('.task-section').classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
+                }
+            });
+
+            taskSection.addEventListener('drop', (e) => {
+                e.preventDefault(); // Prevent default drop behavior (e.g., opening URL)
+
+                // Get the target element where the item was dropped
+                const dropTarget = e.target.closest('.task-section');
+
+                // Remove drag-over classes from all task sections
+                document.querySelectorAll('.task-section').forEach(section => {
+                    section.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
+                });
+
+
+                if (draggedItem && dropTarget && draggedItem !== dropTarget) {
+                    const rect = dropTarget.getBoundingClientRect();
+                    const offset = e.clientY - rect.top;
+
+                    if (offset < rect.height / 2) {
+                        // Insert before the drop target
+                        tasksContainer.insertBefore(draggedItem, dropTarget);
+                    } else {
+                        // Insert after the drop target
+                        tasksContainer.insertBefore(draggedItem, dropTarget.nextSibling);
+                    }
+                }
+            });
+        }
+
+
+        // --- Event Listeners ---
+
+        // Show help modal when help button is clicked
+        helpButton.addEventListener('click', () => {
+            helpModal.classList.remove('hidden');
+        });
+
+        // Hide help modal when close button is clicked
+        closeHelpModal.addEventListener('click', () => {
+            helpModal.classList.add('hidden');
+        });
+
+        // Add new task section when add button is clicked
+        addTaskButton.addEventListener('click', () => {
+            taskCount++; // Increment task counter
+
+            // Create a new task section div
+            const newTaskSection = document.createElement('div');
+            // Give it a unique ID to help with drag and drop
+            newTaskSection.id = `task-section-${Date.now()}`;
+            newTaskSection.classList.add('task-section', 'w-full', 'bg-gray-100', 'p-3', 'rounded-lg', 'shadow-inner', 'flex', 'flex-col', 'space-y-2');
+            newTaskSection.setAttribute('draggable', 'true'); // Make new task sections draggable
+
+            // Create task name input
+            const taskNameInput = document.createElement('input');
+            taskNameInput.type = 'text';
+            taskNameInput.placeholder = `Task ${taskCount}`;
+            taskNameInput.classList.add('task-name-input', 'w-full', 'p-2', 'border', 'border-gray-200', 'rounded-md', 'focus:outline-none', 'focus:ring-1', 'focus:ring-indigo-400', 'text-gray-700', 'bg-white');
+            newTaskSection.appendChild(taskNameInput);
+
+            // Create slider container
+            const sliderContainer = document.createElement('div');
+            sliderContainer.classList.add('flex', 'items-center', 'w-full');
+
+            // Create '0' label for slider
+            const zeroLabel = document.createElement('span');
+            zeroLabel.classList.add('text-sm', 'text-gray-600');
+            zeroLabel.textContent = '0';
+            sliderContainer.appendChild(zeroLabel);
+
+            // Create task duration slider
+            const taskSlider = document.createElement('input');
+            taskSlider.type = 'range';
+            taskSlider.min = '0';
+            taskSlider.max = '25';
+            taskSlider.value = '5'; // Default value for new tasks
+            taskSlider.classList.add('task-slider', 'flex-grow');
+            sliderContainer.appendChild(taskSlider);
+
+            // Create '25' label for slider
+            const twentyFiveLabel = document.createElement('span');
+            twentyFiveLabel.classList.add('text-sm', 'text-gray-600');
+            twentyFiveLabel.textContent = '25';
+            sliderContainer.appendChild(twentyFiveLabel);
+
+            newTaskSection.appendChild(sliderContainer);
+
+            // Append the new task section to the container
+            tasksContainer.appendChild(newTaskSection);
+
+            // Add drag and drop listeners to the newly created task section
+            addDragAndDropListeners(newTaskSection);
+
+            // Update the value of the initial task section to whatever is in the main input
+            // This ensures the last entered task is the main one.
+            const initialTaskNameInput = initialTaskSection.querySelector('.task-name-input');
+            if (initialTaskNameInput && mainTaskInput.value.trim() !== '') {
+                initialTaskNameInput.value = mainTaskInput.value;
+            } else if (initialTaskNameInput) {
+                initialTaskNameInput.value = "Main Task"; // Reset if main input is empty
+            }
+            mainTaskInput.value = ''; // Clear the main input after adding a new task
+        });
+
+        // Handle the 'Dive In' button click for animation
+        diveInButton.addEventListener('click', () => {
+            // Add the 'diving' class to trigger the CSS animation
+            bungeeJumper.classList.add('diving');
+
+            // Optionally, remove the element after the animation finishes
+            // so it doesn't just sit far off-screen
+            bungeeJumper.addEventListener('transitionend', () => {
+                bungeeJumper.style.display = 'none'; // Hide the image after it dives off
+                // At this point, you would typically transition to the next page or state
+                // For this exercise, we just hide it.
+                console.log('Character dived off screen!');
+            }, { once: true }); // Ensure the event listener only runs once
+        });
+
+        // Initialize the initial task input's name
+        const initialTaskNameInput = initialTaskSection.querySelector('.task-name-input');
+        mainTaskInput.addEventListener('input', () => {
+            if (initialTaskNameInput) {
+                initialTaskNameInput.value = mainTaskInput.value.trim() !== '' ? mainTaskInput.value : "Main Task";
+            }
+        });
+
+        // Initialize drag and drop for the initial task section
+        addDragAndDropListeners(initialTaskSection);
+    </script>
+</body>
+</html>
