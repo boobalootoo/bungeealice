@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Palette</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light background for contrast */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Full viewport height */
+            margin: 0;
+            overflow: hidden; /* Prevent scrolling if content overflows slightly */
+        }
+        .main-container {
+            display: flex;
+            background-color: #ffffff; /* White background for the main card */
+            border-radius: 1rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+            overflow: hidden; /* Keep content within rounded corners */
+            width: 80%; /* Responsive width */
+            max-width: 600px; /* Max width for larger screens */
+            height: 80vh; /* Responsive height */
+            max-height: 700px; /* Max height for larger screens */
+        }
+        .left-gradient {
+            flex-grow: 1; /* Takes up most of the space */
+            display: flex;
+            flex-direction: column;
+            position: relative; /* Needed for absolute positioning of the image and scroller */
+            overflow: hidden; /* Hide content outside bounds of the left-gradient */
+        }
+        .background-scroller {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            /* Height will be calculated by JS to contain all 25 blocks */
+            display: flex;
+            flex-direction: column;
+            /* 'transform' property will be controlled by JavaScript for animation */
+        }
+        .bungee-jumper-image {
+            position: absolute;
+            left: 50%;
+            top: 0; /* Stays at the top */
+            transform: translateX(-50%); /* Keep horizontally centered */
+            width: auto; /* Allow width to adjust based on height to maintain aspect ratio */
+            height: 40%; /* Height of 2 large sections */
+            opacity: 0.8; /* Make it slightly transparent so colors show through */
+            z-index: 10; /* Ensure it's above the scrolling background */
+        }
+        .right-gradient {
+            width: 80px; /* Fixed width for the right sidebar-like gradient */
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid rgba(0, 0, 0, 0.1); /* Subtle separator */
+            position: relative; /* Needed for absolute positioning of the second image */
+        }
+        .bungee-jumper-image-small {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%); /* Keep horizontally centered */
+            width: auto; /* Maintain aspect ratio */
+            height: 8%; /* Height of 2 small sections (2/25 = 0.08 = 8%) */
+            opacity: 0.8; /* Make it slightly transparent */
+            z-index: 10; /* Ensure it's above the color blocks */
+            /* 'top' property will be controlled by JavaScript for animation */
+        }
+        .color-block-left {
+            flex-shrink: 0; /* Prevent blocks from shrinking unexpectedly */
+            width: 100%;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1); /* Subtle lines between blocks */
+        }
+        .color-block-left:last-child {
+            border-bottom: none; /* No border for the last block */
+        }
+        .color-block-right {
+            flex-grow: 1; /* Each block takes equal vertical space */
+            min-height: 5px; /* Smaller min-height for more blocks */
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05); /* Very subtle lines */
+        }
+        .color-block-right:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Left Gradient Section -->
+        <div class="left-gradient" id="leftGradient">
+            <div class="background-scroller" id="backgroundScroller">
+                <!-- Large color blocks will be dynamically added here -->
+            </div>
+            <img id="largeJumper" src="https://raw.githubusercontent.com/boobalootoo/bungeealice/refs/heads/main/jump-removebg-preview.png" alt="Bungee Jumper Silhouette Large" class="bungee-jumper-image" onerror="this.onerror=null;this.src='https://placehold.co/300x400/CCCCCC/333333?text=Image+Not+Found';">
+        </div>
+
+        <!-- Right Gradient Section -->
+        <div class="right-gradient" id="rightGradient">
+            <img id="smallJumper" src="https://raw.githubusercontent.com/boobalootoo/bungeealice/refs/heads/main/jump-removebg-preview.png" alt="Bungee Jumper Silhouette Small" class="bungee-jumper-image-small" onerror="this.onerror=null;this.src='https://placehold.co/300x400/CCCCCC/333333?text=Image+Not+Found';">
+            <div class="right-gradient" id="rightGradient"><div class="color-block-right" style="height: 28px; background-color: rgb(92, 0, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(126, 0, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(161, 0, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(195, 0, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(229, 0, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(230, 92, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(236, 107, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(243, 123, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(249, 138, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(255, 153, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(230, 163, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(236, 186, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(243, 209, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(249, 232, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(255, 255, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(0, 128, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(0, 160, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(0, 192, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(0, 223, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(0, 255, 0);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(0, 80, 80);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(0, 108, 108);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(0, 136, 136);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(0, 164, 164);"></div><div class="color-block-right" style="height: 28px; background-color: rgb(0, 192, 192);"></div></div>
+        </div>
+    </div>
+
+    <script>
+        // Helper function to convert hex color to RGB object
+        function hexToRgb(hex) {
+            const bigint = parseInt(hex.slice(1), 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return { r, g, b };
+        }
+
+        // Helper function to convert RGB object to hex color
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0').toUpperCase();
+        }
+
+        /**
+         * Generates a gradient of colors between two hex colors.
+         * @param {string} startHex The starting hex color (e.g., '#RRGGBB').
+         * @param {string} endHex The ending hex color (e.g., '#RRGGBB').
+         * @param {number} steps The number of steps in the gradient (inclusive of start and end).
+         * @returns {string[]} An array of hex color strings.
+         */
+        function generateGradient(startHex, endHex, steps) {
+            const startRgb = hexToRgb(startHex);
+            const endRgb = hexToRgb(endHex);
+            const colors = [];
+
+            for (let i = 0; i < steps; i++) {
+                const factor = steps === 1 ? 0 : i / (steps - 1); // Avoid division by zero if steps is 1
+                const r = Math.round(startRgb.r + factor * (endRgb.r - startRgb.r));
+                const g = Math.round(startRgb.g + factor * (endRgb.g - startRgb.g));
+                const b = Math.round(startRgb.b + factor * (endRgb.b - startRgb.b));
+                colors.push(rgbToHex(r, g, b));
+            }
+            return colors;
+        }
+
+        // Define the segments for the right gradient. Each segment will have exactly 5 colors
+        // that stay within the specified color family, as per the new image.
+        const rightGradientSegments = [
+            // Segment 1: Red (from dark red to a bright red, no orange)
+            { start: '#5C0000', end: '#E50000' },
+            // Segment 2: Orange (from dark orange to a bright orange, no yellow/red)
+            { start: '#E65C00', end: '#FF9900' },
+            // Segment 3: Yellow (from dark yellow to a bright yellow, no orange)
+            { start: '#E6A300', end: '#FFFF00' },
+            // Segment 4: Green (from dark green to a bright green, no blue)
+            { start: '#008000', end: '#00FF00' },
+            // Segment 5: Blue/Teal (from dark teal to a brighter blue/teal)
+            { start: '#005050', end: '#00C0C0' }
+        ];
+
+        // Left colors are now the full 25-color spectrum from the right
+        let allRightColors = [];
+        rightGradientSegments.forEach(segment => {
+            allRightColors = allRightColors.concat(generateGradient(segment.start, segment.end, 5));
+        });
+
+        const leftColors = allRightColors; // Full 25-color spectrum for the left background
+
+        // Get the container elements
+        const leftGradientContainer = document.getElementById('leftGradient');
+        const backgroundScroller = document.getElementById('backgroundScroller'); // New scroller element
+        const rightGradientContainer = document.getElementById('rightGradient');
+        const largeJumper = document.getElementById('largeJumper');
+        const smallJumper = document.getElementById('smallJumper');
+
+        // --- Animation Logic ---
+        let lastTimestamp = 0;
+        let animationFrameId;
+
+        // Current Y position for small jumper (starts outside view, bottom aligned with top of container)
+        let currentY_small = 0;
+        // Current Y scroll offset for the large background scroller
+        let scrollOffset_large = 0;
+
+        // Speeds (pixels per millisecond)
+        let speed_small = 0;
+        let scrollSpeed_large = 0;
+
+        // Total heights of the containers
+        let leftContainerHeight = 0;
+        let rightContainerHeight = 0;
+
+        // Jumper image heights (in pixels, will be calculated after layout)
+        let largeJumperHeightPx = 0;
+        let smallJumperHeightPx = 0;
+
+        // Calculated height of a single large and small section
+        let largeSectionHeightPx = 0;
+        let smallSectionHeightPx = 0;
+
+        /**
+         * Initializes animation parameters once the DOM and layout are ready.
+         */
+        function initializeAnimation() {
+            leftContainerHeight = leftGradientContainer.offsetHeight;
+            rightContainerHeight = rightGradientContainer.offsetHeight;
+
+            // Clear previous blocks and populate the large background scroller
+            backgroundScroller.innerHTML = '';
+            // Recalculate largeSectionHeightPx based on current container height
+            largeSectionHeightPx = leftContainerHeight / 5; // We want 5 large sections visually filling the screen
+
+            // Populate the backgroundScroller with 25 sections (each being 1/5th of container height to make a single section 1 minute)
+            leftColors.forEach(color => {
+                const div = document.createElement('div');
+                div.classList.add('color-block-left');
+                // Each large section will now be 1/5th of the container height
+                div.style.height = `${leftContainerHeight / 5}px`; // Make each block visually fill 1/5th of the container
+                div.style.backgroundColor = color;
+                backgroundScroller.appendChild(div);
+            });
+
+
+            // Set height of backgroundScroller to contain all 25 sections (5 screen heights worth)
+            backgroundScroller.style.height = `${(leftContainerHeight / 5) * 25}px`;
+
+            // Set initial position for large jumper (fixed at top)
+            largeJumper.style.top = `0px`;
+
+            // Calculate jumper image heights once loaded
+            largeJumperHeightPx = largeJumper.offsetHeight;
+            smallJumperHeightPx = smallJumper.offsetHeight;
+
+            // Initial position for small jumper: bottom of image at top of container
+            smallJumper.style.top = `${-smallJumperHeightPx}px`;
+            currentY_small = -smallJumperHeightPx; // Set currentY to initial top
+
+            // Recalculate small section height if container size changed
+            smallSectionHeightPx = rightContainerHeight / 25; // 25 sections in the small area
+
+
+            // Initial position of backgroundScroller: its top aligns with container's top
+            scrollOffset_large = 0;
+
+            // Calculate speeds (pixels per minute converted to px per ms)
+            // Large section: 1 section (which is now 1/5th of the container height) per minute
+            scrollSpeed_large = (leftContainerHeight / 5) / (60 * 1000); // px per ms
+
+            // Small section: 1 section (1/25th of container height) per minute
+            speed_small = smallSectionHeightPx / (60 * 1000); // px per ms
+
+            // Start animation loop
+            lastTimestamp = performance.now();
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        /**
+         * The main animation loop.
+         * @param {DOMHighResTimeStamp} timestamp The current time in milliseconds.
+         */
+        function animate(timestamp) {
+            const deltaTime = timestamp - lastTimestamp;
+            lastTimestamp = timestamp;
+
+            // Update positions
+            // Small jumper: moves downwards
+            currentY_small += speed_small * deltaTime;
+            // Large background: scrolls upwards (negative transform means moving up)
+            scrollOffset_large -= scrollSpeed_large * deltaTime;
+
+            // Apply new positions to elements
+            smallJumper.style.top = `${currentY_small}px`;
+            backgroundScroller.style.transform = `translateY(${scrollOffset_large}px)`;
+
+            // Loop figures/background when they go off screen
+            // If the small jumper goes completely below its container, reset it to the top
+            if (currentY_small > rightContainerHeight) {
+                currentY_small = -smallJumperHeightPx;
+            }
+
+            // If the large background has scrolled completely past its effective content height, reset it
+            // The total scrollable height for the background is (total sections - visible sections) * sectionHeight
+            // Since we have 25 total sections and 5 are visible at any time, we scroll 20 full sections.
+            const totalScrollableHeightLarge = (leftColors.length - 5) * (leftContainerHeight / 5);
+            if (Math.abs(scrollOffset_large) >= totalScrollableHeightLarge) {
+                scrollOffset_large = 0; // Reset to show the first 5 sections (red gradient) again
+            }
+
+
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        // Ensure images are loaded before initializing animation tFo get correct dimensions
+        let imagesLoadedCount = 0;
+        const totalImages = 2; // largeJumper, smallJumper
+
+        function imageLoadHandler() {
+            imagesLoadedCount++;
+            if (imagesLoadedCount === totalImages) {
+                initializeAnimation();
+            }
+        }
+
+        largeJumper.onload = imageLoadHandler;
+        smallJumper.onload = imageLoadHandler;
+
+        // Handle cases where images might already be cached and 'onload' doesn't fire
+        if (largeJumper.complete && largeJumper.naturalHeight !== 0) imageLoadHandler();
+        if (smallJumper.complete && smallJumper.naturalHeight !== 0) imageLoadHandler();
+
+        // Re-initialize animation parameters if the window is resized
+        window.addEventListener('resize', () => {
+            cancelAnimationFrame(animationFrameId); // Stop current animation
+            imagesLoadedCount = 0; // Reset count to re-trigger initializeAnimation
+            // Re-assign onload to ensure it fires if images are re-layouted
+            largeJumper.onload = imageLoadHandler;
+            smallJumper.onload = imageLoadHandler;
+            // Trigger onload manually if already complete for resized images
+            if (largeJumper.complete && largeJumper.naturalHeight !== 0) imageLoadHandler();
+            if (smallJumper.complete && smallJumper.naturalHeight !== 0) imageLoadHandler();
+        });
+    </script>
+</body>
+</html>
