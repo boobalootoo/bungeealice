@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bungee Alice - Get Things Done</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define Inter font for the entire body */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light background for a clean look */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Full viewport height */
+            margin: 0;
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+        /* Custom styles for the bungee jump image animation */
+        .bungee-jumper {
+            transition: transform 1s ease-in-out; /* Smooth transition for diving effect */
+            transform-origin: center top; /* Rotate from the top center */
+        }
+
+        .bungee-jumper.diving {
+            transform: translateY(150vh) rotate(360deg); /* Dive off screen and rotate */
+            opacity: 0; /* Fade out as it dives */
+        }
+
+        /* Styles for task blocks within the timeline */
+        .task-block {
+            min-width: 20px; /* Minimum width for task blocks to prevent disappearance */
+            flex-grow: 1; /* Allows blocks to grow and shrink */
+            flex-shrink: 1; /* Allows blocks to grow and shrink */
+            transition: background-color 0.3s ease; /* Smooth color transition */
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+
+        /* Styles for drag and drop reordering feedback */
+        .task-block.dragging {
+            opacity: 0.5; /* Make dragged item semi-transparent */
+            border: 2px dashed #93c5fd; /* Light blue dashed border for visual feedback */
+        }
+
+        .task-block.drag-over-left {
+            border-left: 3px solid #6366f1; /* Highlight left drop target */
+        }
+
+        .task-block.drag-over-right {
+            border-right: 3px solid #6366f1; /* Highlight right drop target */
+        }
+
+        /* Styles for resize handle between blocks */
+        .resize-handle {
+            background-color: rgba(0, 0, 0, 0.2); /* Semi-transparent handle */
+            transition: background-color 0.2s ease;
+        }
+
+        .resize-handle:hover {
+            background-color: rgba(0, 0, 0, 0.4); /* Darker on hover */
+        }
+
+        /* Visual indicator for resizing */
+        .resizing-cursor {
+            cursor: ew-resize !important;
+        }
+
+        /* Styles for trash can icon */
+        #trashCan {
+            transition: all 0.3s ease;
+        }
+
+        #trashCan.drag-over-trash {
+            background-color: #ef4444; /* Red background when item is dragged over */
+            color: white;
+            transform: scale(1.1); /* Slightly enlarge when active */
+        }
+    </style>
+</head>
+<body>
+    <div class="flex flex-col items-center p-4 sm:p-6 md:p-8 w-full max-w-md bg-white rounded-xl shadow-lg relative">
+        <!-- Help Button -->
+        <button id="helpButton" class="absolute top-4 left-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out">
+            help
+        </button>
+
+        <!-- Help Modal (hidden by default) -->
+        <div id="helpModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl">
+                <h3 class="text-xl font-bold mb-4 text-gray-900">How to Use Bungee Alice</h3>
+                <p class="text-gray-700 mb-4">
+                    This site helps you work in 25-minute increments, inspired by the Pomodoro Technique.
+                </p>
+                <ul class="list-disc list-inside text-gray-700 mb-4">
+                    <li>Type your task in the text box.</li>
+                    <li>Click the '+' button to add it to the timeline.</li>
+                    <li>Tasks will split the 25 minutes evenly by default.</li>
+                    <li>**Drag the vertical lines between task blocks** to adjust their duration.</li>
+                    <li>**Drag and drop the task blocks themselves** to reorder them.</li>
+                    <li>**Drag a task block onto the trash can** to delete it.</li>
+                    <li>Click 'DIVE IN' to start your focused work session!</li>
+                </ul>
+                <button id="closeHelpModal" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg w-full shadow-md transition duration-300 ease-in-out">
+                    Got It!
+                </button>
+            </div>
+        </div>
+
+        <!-- Bungee Jump Image -->
+        <div class="w-48 sm:w-64 md:w-80 h-auto mb-6 flex justify-center items-center overflow-hidden">
+            <img id="bungeeJumper" src="https://raw.githubusercontent.com/boobalootoo/bungeealice/refs/heads/main/jump-removebg-preview.png" alt="Bungee jumping character silhouette" class="bungee-jumper w-full h-full object-contain" onerror="this.onerror=null;this.src='https://placehold.co/300x400/CCCCCC/333333?text=Image+Not+Found';">
+        </div>
+
+        <!-- Main Task Input -->
+        <div class="flex items-center w-full mb-6">
+            <input
+                type="text"
+                id="mainTaskInput"
+                placeholder="Type what you want to do in the next 25 minutes"
+                class="flex-grow p-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm text-gray-800"
+            />
+            <button id="addTaskButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-r-lg shadow-md transition duration-300 ease-in-out">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Timeline and Trash Can Container -->
+        <div class="flex items-center w-full mb-2">
+            <!-- Timeline Container -->
+            <div id="tasksContainer" class="flex flex-row items-stretch h-24 flex-grow bg-gray-200 rounded-l-lg overflow-hidden relative border border-gray-300">
+                <!-- Task blocks will be injected here dynamically -->
+            </div>
+            <!-- Trash Can -->
+            <div id="trashCan" class="flex-shrink-0 w-16 h-24 flex items-center justify-center bg-gray-300 rounded-r-lg ml-1 border border-gray-300 cursor-pointer text-gray-600 hover:bg-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Time Markers -->
+        <div class="time-markers flex justify-between w-full max-w-md px-2 text-lg text-gray-600 font-semibold mb-8">
+            <span>00</span>
+            <span>05</span>
+            <span>10</span>
+            <span>15</span>
+            <span>20</span>
+            <span>25</span>
+        </div>
+
+        <!-- Dive In Button -->
+        <button id="diveInButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-lg text-xl uppercase tracking-wider shadow-lg transform hover:scale-105 transition duration-300 ease-in-out">
+            DIVE IN
+        </button>
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const helpButton = document.getElementById('helpButton');
+        const helpModal = document.getElementById('helpModal');
+        const closeHelpModal = document.getElementById('closeHelpModal');
+        const addTaskButton = document.getElementById('addTaskButton');
+        const tasksContainer = document.getElementById('tasksContainer'); // This is now the timeline container
+        const mainTaskInput = document.getElementById('mainTaskInput');
+        const diveInButton = document.getElementById('diveInButton');
+        const bungeeJumper = document.getElementById('bungeeJumper');
+        const trashCan = document.getElementById('trashCan'); // Reference to the trash can
+
+        // Array to store task data: { id, name, duration, color }
+        let tasks = [];
+
+        // Predefined set of colors for task blocks
+        const COLORS = [
+            '#ef4444', // Red
+            '#f97316', // Orange
+            '#facc15', // Yellow
+            '#22c55e', // Green
+            '#06b6d4', // Cyan
+            '#3b82f6', // Blue
+            '#6366f1'  // Indigo
+        ];
+        let colorIndex = 0; // To cycle through colors
+
+        /**
+         * Returns the next color from the predefined list.
+         * @returns {string} Hex color code.
+         */
+        function getNextColor() {
+            const color = COLORS[colorIndex % COLORS.length];
+            colorIndex++;
+            return color;
+        }
+
+        /**
+         * Renders or re-renders the task blocks on the timeline based on the 'tasks' array.
+         */
+        function renderTimeline() {
+            tasksContainer.innerHTML = ''; // Clear existing blocks
+            const totalMinutes = 25; // Total time for the timeline
+
+            // Add resizing cursor to body while resizing
+            document.body.classList.remove('resizing-cursor');
+
+            tasks.forEach((task, index) => {
+                const taskBlock = document.createElement('div');
+                taskBlock.id = task.id; // Assign unique ID
+                taskBlock.classList.add(
+                    'task-block',
+                    'flex', 'flex-col', 'justify-center', 'items-center',
+                    'text-white', 'text-sm', 'font-semibold',
+                    'relative', 'group', 'overflow-hidden', 'whitespace-nowrap', 'truncate',
+                    'px-2' // Padding for text
+                );
+                taskBlock.style.backgroundColor = task.color;
+                // Set flex-basis to control width based on duration percentage
+                taskBlock.style.flexBasis = `${(task.duration / totalMinutes) * 100}%`;
+                taskBlock.style.minWidth = '20px'; // Ensure a minimum visible width
+
+                // Make the block draggable for reordering
+                taskBlock.setAttribute('draggable', 'true');
+
+                // Task name display
+                const taskNameDiv = document.createElement('div');
+                taskNameDiv.classList.add('p-1', 'text-center');
+                taskNameDiv.textContent = task.name;
+                taskBlock.appendChild(taskNameDiv);
+
+                // Task duration display
+                const taskDurationDiv = document.createElement('div');
+                taskDurationDiv.classList.add('text-xs', 'font-normal', 'text-gray-100');
+                taskDurationDiv.textContent = `${task.duration.toFixed(1)} min`; // Display duration, rounded to 1 decimal
+                taskBlock.appendChild(taskDurationDiv);
+
+                // Add resize handle to the right of each block (except the very last one)
+                if (index < tasks.length - 1) {
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.classList.add(
+                        'resize-handle',
+                        'absolute', 'top-0', 'right-0', 'bottom-0',
+                        'w-2', 'cursor-ew-resize', 'z-10'
+                    );
+                    taskBlock.appendChild(resizeHandle);
+                    // Attach resize listeners to the handle
+                    addResizeListeners(resizeHandle, taskBlock, tasks[index], tasks[index + 1]);
+                }
+
+                tasksContainer.appendChild(taskBlock);
+            });
+
+            // Re-attach drag and drop listeners for reordering after rendering
+            // This ensures new and reordered blocks are draggable
+            document.querySelectorAll('.task-block').forEach(block => {
+                addDragAndDropListeners(block);
+            });
+        }
+
+        /**
+         * Distributes the total 25 minutes evenly among all current tasks.
+         * Then re-renders the timeline.
+         */
+        function distributeTimeEvenly() {
+            if (tasks.length === 0) {
+                renderTimeline(); // Render empty if no tasks
+                return;
+            }
+            const newDuration = 25 / tasks.length;
+            tasks.forEach(task => {
+                task.duration = newDuration;
+            });
+            renderTimeline();
+        }
+
+        // --- Drag and Drop for Reordering Task Blocks ---
+        let draggedItem = null; // Stores the HTML element being dragged
+
+        /**
+         * Attaches drag and drop event listeners to a task block for reordering.
+         * @param {HTMLElement} taskBlock The task block element.
+         */
+        function addDragAndDropListeners(taskBlock) {
+            taskBlock.addEventListener('dragstart', (e) => {
+                draggedItem = taskBlock;
+                // Add 'dragging' class after a short delay to avoid immediate visual flicker
+                setTimeout(() => {
+                    taskBlock.classList.add('dragging');
+                }, 0);
+                // Set data to be transferred (e.g., the ID of the dragged task)
+                e.dataTransfer.setData('text/plain', taskBlock.id);
+                e.dataTransfer.effectAllowed = 'move'; // Visual feedback for 'move' operation
+            });
+
+            taskBlock.addEventListener('dragend', () => {
+                // Clean up visual feedback after drag ends
+                taskBlock.classList.remove('dragging');
+                draggedItem = null; // Clear the dragged item
+            });
+
+            taskBlock.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Prevent default to allow dropping
+                // Add visual feedback to indicate a valid drop target area
+                const dropTarget = e.target.closest('.task-block');
+                const isOverTrash = e.target.closest('#trashCan');
+
+                // Remove existing drag-over classes from all blocks and trash can
+                document.querySelectorAll('.task-block').forEach(block => {
+                    block.classList.remove('drag-over-left', 'drag-over-right');
+                });
+                trashCan.classList.remove('drag-over-trash');
+
+                if (isOverTrash) {
+                    trashCan.classList.add('drag-over-trash');
+                } else if (draggedItem && dropTarget && draggedItem !== dropTarget) {
+                    const rect = dropTarget.getBoundingClientRect();
+                    const offset = e.clientX - rect.left; // X position relative to the target block
+                    if (offset < rect.width / 2) {
+                        dropTarget.classList.add('drag-over-left'); // Highlight left half for insertion
+                    } else {
+                        dropTarget.classList.add('drag-over-right'); // Highlight right half for insertion
+                    }
+                }
+            });
+
+            taskBlock.addEventListener('dragleave', (e) => {
+                // Remove visual feedback when leaving a drop target
+                const target = e.target.closest('.task-block');
+                if (target) {
+                    target.classList.remove('drag-over-left', 'drag-over-right');
+                }
+                // Also remove drag-over from trash can if leaving it
+                if (!e.relatedTarget || !e.relatedTarget.closest('#trashCan')) {
+                     trashCan.classList.remove('drag-over-trash');
+                }
+            });
+
+            taskBlock.addEventListener('drop', (e) => {
+                e.preventDefault(); // Prevent default drop behavior
+
+                const dropTarget = e.target.closest('.task-block');
+                const isDroppedOnTrash = e.target.closest('#trashCan');
+
+                // Remove all drag-over classes immediately on drop
+                document.querySelectorAll('.task-block').forEach(block => {
+                    block.classList.remove('drag-over-left', 'drag-over-right');
+                });
+                trashCan.classList.remove('drag-over-trash');
+
+                if (draggedItem && isDroppedOnTrash) {
+                    // Handle deletion
+                    const taskIdToDelete = draggedItem.id;
+                    const indexToDelete = tasks.findIndex(t => t.id === taskIdToDelete);
+                    if (indexToDelete > -1) {
+                        tasks.splice(indexToDelete, 1); // Remove from array
+                        distributeTimeEvenly(); // Re-distribute time and re-render
+                    }
+                } else if (draggedItem && dropTarget && draggedItem !== dropTarget) {
+                    // Handle reordering
+                    const draggedIndex = tasks.findIndex(t => t.id === draggedItem.id);
+                    const dropIndex = tasks.findIndex(t => t.id === dropTarget.id);
+
+                    const [removed] = tasks.splice(draggedIndex, 1); // Remove the dragged task
+                    if (e.clientX - dropTarget.getBoundingClientRect().left < dropTarget.offsetWidth / 2) {
+                        tasks.splice(dropIndex, 0, removed); // Insert before dropTarget
+                    } else {
+                        tasks.splice(dropIndex + 1, 0, removed); // Insert after dropTarget
+                    }
+                    renderTimeline(); // Re-render the timeline to reflect the new order
+                }
+            });
+        }
+
+        // --- Resizing Logic for Task Blocks ---
+        let isResizing = false;
+        let currentBlock = null; // The task block being resized (left side of the handle)
+        let nextBlock = null;    // The task block adjacent to the currentBlock (right side of the handle)
+        let currentTaskData = null; // Data object for the currentBlock
+        let nextTaskData = null;    // Data object for the nextBlock
+        let startX = 0;             // Initial mouse X position when resize starts
+        let startWidthCurrent = 0;  // Initial width of currentBlock in pixels
+        let startWidthNext = 0;     // Initial width of nextBlock in pixels
+
+        /**
+         * Attaches mouse listeners to a resize handle to enable resizing of adjacent blocks.
+         * @param {HTMLElement} handle The resize handle element.
+         * @param {HTMLElement} block The task block to the left of the handle.
+         * @param {object} taskData The data object for the 'block'.
+         * @param {object} nextTaskDataRef The data object for the block to the right of the handle.
+         */
+        function addResizeListeners(handle, block, taskData, nextTaskDataRef) {
+            handle.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                currentBlock = block;
+                nextBlock = block.nextSibling; // Get the next sibling element in the DOM
+                currentTaskData = taskData;
+                nextTaskData = nextTaskDataRef;
+
+                startX = e.clientX;
+                startWidthCurrent = currentBlock.offsetWidth;
+                startWidthNext = nextBlock.offsetWidth;
+
+                // Add global event listeners for mouse move and up to capture movements outside the handle
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+
+                // Add a global cursor class to indicate resizing
+                document.body.classList.add('resizing-cursor');
+
+                e.preventDefault(); // Prevent text selection on drag
+            });
+        }
+
+        /**
+         * Handles mouse movement during a resize operation.
+         * Updates the widths of the current and next blocks dynamically.
+         * @param {MouseEvent} e The mousemove event object.
+         */
+        function onMouseMove(e) {
+            if (!isResizing) return;
+
+            const deltaX = e.clientX - startX; // Change in mouse X position
+            const containerWidth = tasksContainer.offsetWidth; // Total width of the timeline container
+            const minPixelWidth = 20; // Minimum allowed width for a block in pixels
+
+            // Calculate new pixel widths for the current and next blocks
+            let newWidthCurrentPx = startWidthCurrent + deltaX;
+            let newWidthNextPx = startWidthNext - deltaX;
+
+            // Apply minimum width constraints
+            if (newWidthCurrentPx < minPixelWidth) {
+                newWidthCurrentPx = minPixelWidth;
+                // Adjust next block width to maintain total width
+                newWidthNextPx = startWidthCurrent + startWidthNext - minPixelWidth;
+            }
+            if (newWidthNextPx < minPixelWidth) {
+                newWidthNextPx = minPixelWidth;
+                // Adjust current block width to maintain total width
+                newWidthCurrentPx = startWidthCurrent + startWidthNext - minPixelWidth;
+            }
+
+            // Apply the new widths using flex-basis (percentage of container width)
+            currentBlock.style.flexBasis = `${(newWidthCurrentPx / containerWidth) * 100}%`;
+            nextBlock.style.flexBasis = `${(newWidthNextPx / containerWidth) * 100}%`;
+
+            // Update the duration in the JavaScript data model (tasks array)
+            const totalMinutes = 25;
+            currentTaskData.duration = (newWidthCurrentPx / containerWidth) * totalMinutes;
+            nextTaskData.duration = (newWidthNextPx / containerWidth) * totalMinutes;
+
+            // Update displayed durations immediately during resize
+            currentBlock.querySelector('.text-xs').textContent = `${currentTaskData.duration.toFixed(1)} min`;
+            nextBlock.querySelector('.text-xs').textContent = `${nextTaskData.duration.toFixed(1)} min`;
+        }
+
+        /**
+         * Handles mouse up event, signaling the end of a resize operation.
+         * Cleans up event listeners and state.
+         */
+        function onMouseUp() {
+            isResizing = false;
+            currentBlock = null;
+            nextBlock = null;
+            currentTaskData = null;
+            nextTaskData = null;
+
+            // Remove global event listeners
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            // Remove the global cursor class
+            document.body.classList.remove('resizing-cursor');
+
+            // Re-render the timeline to ensure clean application of new durations
+            // and correct display, especially after rounding
+            renderTimeline();
+        }
+
+        // --- Event Listeners ---
+
+        // Show help modal when help button is clicked
+        helpButton.addEventListener('click', () => {
+            helpModal.classList.remove('hidden');
+        });
+
+        // Hide help modal when close button is clicked
+        closeHelpModal.addEventListener('click', () => {
+            helpModal.classList.add('hidden');
+        });
+
+        // Add new task block to the timeline when add button is clicked
+        addTaskButton.addEventListener('click', () => {
+            let taskName = mainTaskInput.value.trim();
+            if (taskName === '') {
+                taskName = `Task ${tasks.length + 1}`; // Default name if input is empty
+            }
+
+            // Create a new task data object
+            const newTask = {
+                id: `task-${Date.now()}`, // Unique ID for the task
+                name: taskName,
+                duration: 0, // Duration will be set by distributeTimeEvenly
+                color: getNextColor() // Assign a color from the predefined list
+            };
+            tasks.push(newTask); // Add new task to the array
+
+            distributeTimeEvenly(); // Recalculate durations and re-render all blocks
+            mainTaskInput.value = ''; // Clear the main task input field
+        });
+
+        // Handle the 'Dive In' button click for animation and redirection
+        diveInButton.addEventListener('click', () => {
+            // Add the 'diving' class to trigger the CSS animation
+            bungeeJumper.classList.add('diving');
+
+            // Listen for the end of the CSS transition
+            bungeeJumper.addEventListener('transitionend', () => {
+                // Hide the image after it dives off
+                bungeeJumper.style.display = 'none';
+                // Redirect to 7.html after the animation
+                window.location.href = '7.html';
+            }, { once: true }); // Ensure the event listener only runs once
+        });
+
+        // --- Trash Can Drag and Drop Listeners ---
+        trashCan.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Allow drop
+            trashCan.classList.add('drag-over-trash'); // Visual feedback
+        });
+
+        trashCan.addEventListener('dragleave', () => {
+            trashCan.classList.remove('drag-over-trash'); // Remove visual feedback
+        });
+
+        trashCan.addEventListener('drop', (e) => {
+            e.preventDefault();
+            trashCan.classList.remove('drag-over-trash'); // Remove visual feedback
+
+            const data = e.dataTransfer.getData('text/plain');
+            const taskIdToDelete = data; // The ID of the dragged task
+
+            const indexToDelete = tasks.findIndex(t => t.id === taskIdToDelete);
+            if (indexToDelete > -1) {
+                tasks.splice(indexToDelete, 1); // Remove task from array
+                distributeTimeEvenly(); // Re-distribute time among remaining tasks and re-render
+            }
+        });
+
+        // Initial setup on page load: Render an empty timeline.
+        // Tasks will be added via the input and '+' button.
+        window.onload = () => {
+            renderTimeline();
+        };
+    </script>
+</body>
+</html>
