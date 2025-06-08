@@ -91,7 +91,19 @@
                 </div>
             </div>
 
-            <!-- Removed Task Completion Modal HTML as it's now handled by system notifications -->
+            <!-- New Task Completion Modal (re-added for in-app interaction) -->
+            <div id="taskCompletionModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl text-center">
+                    <h3 class="text-2xl font-bold mb-4 text-gray-900">Task Completed!</h3>
+                    <p class="text-gray-700 text-lg mb-2">Did you complete "<span id="completedTaskName" class="font-semibold text-indigo-700"></span>" (<span id="completedTaskDuration" class="font-semibold text-indigo-700"></span>)?</p>
+                    <p id="nextTaskInfo" class="text-gray-600 mb-6 text-base"></p>
+                    <div class="flex justify-center space-x-4">
+                        <button id="taskYesButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out">Yes!</button>
+                        <button id="taskNoButton" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out">No</button>
+                    </div>
+                </div>
+            </div>
+            <!-- End New Task Completion Modal -->
 
 
             <div class="w-48 sm:w-64 md:w-80 h-auto mb-6 flex justify-center items-center overflow-hidden">
@@ -282,7 +294,7 @@
             const D=document; 
             // Declare module-level variables for DOM elements, assigned in initializeAnimation
             let gradientSection, leftGradientContainer, backgroundScroller, rightGradientContainer, largeJumper, smallJumper;
-            // Removed references to taskCompletionModal elements
+            let taskCompletionModal, completedTaskNameSpan, completedTaskDurationSpan, nextTaskInfoP, taskYesButton, taskNoButton; // Re-added
 
             const segments=[
                 {start:'#5C0000',end:'#E50000'},{start:'#E65C00',end:'#FF9900'},
@@ -330,7 +342,29 @@
                 });
             }
 
-            // Removed showTaskCompletionModal and hideTaskCompletionModal functions
+            // Re-added showTaskCompletionModal and hideTaskCompletionModal functions
+            function showTaskCompletionModal(taskIndex) {
+                const completedTask = _tasks[taskIndex];
+                const nextTask = _tasks[taskIndex + 1];
+
+                if (completedTask) {
+                    completedTaskNameSpan.textContent = completedTask.name;
+                    completedTaskDurationSpan.textContent = `${completedTask.duration.toFixed(1)} min`;
+                }
+
+                if (nextTask) {
+                    nextTaskInfoP.textContent = `Next up: "${nextTask.name}" (${nextTask.duration.toFixed(1)} min)`;
+                } else {
+                    nextTaskInfoP.textContent = "You've completed all tasks for this session!";
+                }
+                
+                taskCompletionModal.classList.remove('hidden');
+            }
+
+            function hideTaskCompletionModal() {
+                taskCompletionModal.classList.add('hidden');
+                animationFrameId = requestAnimationFrame(animate); // Resume animation
+            }
 
             function triggerSystemNotification(completedTask, nextTask) {
                 console.log("Attempting to trigger system notification...");
@@ -338,36 +372,28 @@
 
                 if ('Notification' in window && Notification.permission === 'granted') {
                     const title = 'Task Completed!';
-                    let body = `Did you complete "${completedTask.name}" (${completedTask.duration.toFixed(1)} min)?`;
+                    let body = `You finished "${completedTask.name}" (${completedTask.duration.toFixed(1)} min).`;
                     if (nextTask) {
-                        body += ` Next up: "${nextTask.name}" (${nextTask.duration.toFixed(1)} min).`;
+                        body += ` Next: "${nextTask.name}" (${nextTask.duration.toFixed(1)} min).`;
                     } else {
-                        body += ' You\'ve completed all tasks for this session!';
+                        body += ' All tasks completed!';
                     }
 
                     try {
                         const notification = new Notification(title, {
                             body: body,
                             icon: 'https://placehold.co/64x64/22c55e/ffffff?text=✔', // Green checkmark icon
-                            actions: [
-                                { action: 'completed', title: 'Yes, Completed!' },
-                                { action: 'skipped', title: 'No, Skip' }
-                            ]
+                            // Removed actions as they require Service Worker
                         });
 
+                        // When notification is clicked, bring app to foreground and show modal
                         notification.addEventListener('click', function(event) {
-                            console.log('Notification clicked, action:', event.action);
-                            notification.close(); // Close the notification
-
-                            if (event.action === 'completed') {
-                                smashSound.currentTime = 0;
-                                smashSound.play().catch(e => console.error("Error playing sound on notification click:", e));
-                            }
-                            // Resume animation regardless of button clicked
-                            animationFrameId = requestAnimationFrame(animate); 
+                            console.log('Notification clicked.');
+                            window.focus(); // Bring the browser window to focus
+                            showTaskCompletionModal(completedTask.markerIndex); // Use markerIndex to show correct task details
                         });
 
-                        // Add a 'close' event listener for cases where the user closes the notification without clicking an action
+                        // If user closes notification, resume animation (modal will still be shown on app focus)
                         notification.addEventListener('close', function() {
                             console.log('Notification closed without action. Resuming animation.');
                             animationFrameId = requestAnimationFrame(animate);
@@ -392,6 +418,25 @@
                 rightGradientContainer = D.getElementById('rightGradient');
                 largeJumper = D.getElementById('largeJumper');
                 smallJumper = D.getElementById('smallJumper');
+
+                // Assign new modal elements
+                taskCompletionModal = D.getElementById('taskCompletionModal');
+                completedTaskNameSpan = D.getElementById('completedTaskName');
+                completedTaskDurationSpan = D.getElementById('completedTaskDuration');
+                nextTaskInfoP = D.getElementById('nextTaskInfo');
+                taskYesButton = D.getElementById('taskYesButton');
+                taskNoButton = D.getElementById('taskNoButton');
+
+                // Add event listeners for modal buttons
+                taskYesButton.onclick = () => {
+                    smashSound.currentTime = 0;
+                    smashSound.play().catch(e => console.error("Error playing sound:", e));
+                    hideTaskCompletionModal();
+                };
+                taskNoButton.onclick = () => {
+                    hideTaskCompletionModal();
+                };
+
 
                 lCH=leftGradientContainer.offsetHeight;rCH=rightGradientContainer.offsetHeight;
                 backgroundScroller.innerHTML='';lSH=lCH/5;
@@ -452,6 +497,9 @@
                     }
                     const completedTask = _tasks[index];
                     const nextTask = _tasks[index + 1];
+                    // Add the marker index to the completedTask object for use in showTaskCompletionModal
+                    completedTask.markerIndex = index; 
+
                     const markerAbsoluteTop = marker.offsetTop + scrollOffset_large; 
                     const prevMarkerAbsoluteTop = marker.offsetTop + prevScrollOffset_large;
 
@@ -460,6 +508,8 @@
                         markerHitFlags[index] = true; // Mark this marker as hit
                         cancelAnimationFrame(animationFrameId); // Pause animation
                         triggerSystemNotification(completedTask, nextTask); // Show notification for this task
+                        // Also show the in-app modal immediately, as the notification won't have buttons
+                        showTaskCompletionModal(index);
                     }
                 });
 
