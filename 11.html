@@ -433,7 +433,8 @@
                 
                 // Collision detection for left task markers hitting the top
                 const triggerPoint = 0; // The top of the scrolling background
-                const detectionOffset = 5; // A few pixels above the actual line to trigger detection
+                // Adjusted detectionOffset to allow the marker to reach the top before pausing
+                const detectionOffset = -5; // A few pixels *below* the actual top to trigger detection
                 const tolerance = scrollSpeed_large * dt * 2; // Tolerance based on movement speed
 
                 leftTaskMarkers.forEach((marker, index) => {
