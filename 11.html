@@ -333,6 +333,9 @@
             // Removed showTaskCompletionModal and hideTaskCompletionModal functions
 
             function triggerSystemNotification(completedTask, nextTask) {
+                console.log("Attempting to trigger system notification...");
+                console.log("Notification.permission:", Notification.permission);
+
                 if ('Notification' in window && Notification.permission === 'granted') {
                     const title = 'Task Completed!';
                     let body = `Did you complete "${completedTask.name}" (${completedTask.duration.toFixed(1)} min)?`;
@@ -342,33 +345,41 @@
                         body += ' You\'ve completed all tasks for this session!';
                     }
 
-                    const notification = new Notification(title, {
-                        body: body,
-                        icon: 'https://placehold.co/64x64/22c55e/ffffff?text=✔', // Green checkmark icon
-                        actions: [
-                            { action: 'completed', title: 'Yes, Completed!' },
-                            { action: 'skipped', title: 'No, Skip' }
-                        ]
-                    });
+                    try {
+                        const notification = new Notification(title, {
+                            body: body,
+                            icon: 'https://placehold.co/64x64/22c55e/ffffff?text=✔', // Green checkmark icon
+                            actions: [
+                                { action: 'completed', title: 'Yes, Completed!' },
+                                { action: 'skipped', title: 'No, Skip' }
+                            ]
+                        });
 
-                    notification.addEventListener('click', function(event) {
-                        console.log('Notification clicked, action:', event.action);
-                        notification.close(); // Close the notification
+                        notification.addEventListener('click', function(event) {
+                            console.log('Notification clicked, action:', event.action);
+                            notification.close(); // Close the notification
 
-                        if (event.action === 'completed') {
-                            smashSound.currentTime = 0;
-                            smashSound.play().catch(e => console.error("Error playing sound on notification click:", e));
-                        }
-                        // Resume animation regardless of button clicked
-                        animationFrameId = requestAnimationFrame(animate); 
-                    });
+                            if (event.action === 'completed') {
+                                smashSound.currentTime = 0;
+                                smashSound.play().catch(e => console.error("Error playing sound on notification click:", e));
+                            }
+                            // Resume animation regardless of button clicked
+                            animationFrameId = requestAnimationFrame(animate); 
+                        });
 
-                    // Add a 'close' event listener for cases where the user closes the notification without clicking an action
-                    notification.addEventListener('close', function() {
-                        console.log('Notification closed without action. Resuming animation.');
-                        animationFrameId = requestAnimationFrame(animate);
-                    });
-
+                        // Add a 'close' event listener for cases where the user closes the notification without clicking an action
+                        notification.addEventListener('close', function() {
+                            console.log('Notification closed without action. Resuming animation.');
+                            animationFrameId = requestAnimationFrame(animate);
+                        });
+                        console.log("System notification created successfully.");
+                    } catch (error) {
+                        console.error("Error creating system notification:", error);
+                    }
+                } else if (!('Notification' in window)) {
+                    console.warn("Notification API not supported by this browser.");
+                } else {
+                    console.warn("Notification permission not granted. Cannot show system notification.");
                 }
             }
 
@@ -381,8 +392,6 @@
                 rightGradientContainer = D.getElementById('rightGradient');
                 largeJumper = D.getElementById('largeJumper');
                 smallJumper = D.getElementById('smallJumper');
-
-                // Removed assignments for taskCompletionModal elements
 
                 lCH=leftGradientContainer.offsetHeight;rCH=rightGradientContainer.offsetHeight;
                 backgroundScroller.innerHTML='';lSH=lCH/5;
