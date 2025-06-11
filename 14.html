@@ -427,13 +427,18 @@
 
         const handleSessionCompletion = (sessionTasks) => {
             console.log("handleSessionCompletion called. Session completed! Tasks:", sessionTasks);
+            // Clear the timeout to prevent it from firing if we're manually ending the session
+            if (gradientAnimation.sessionTimeout) {
+                clearTimeout(gradientAnimation.sessionTimeout);
+                console.log("Cleared sessionTimeout.");
+            }
             cancelAnimationFrame(gradientAnimation.animationFrameId);
             document.getElementById('gradientSection').style.display = 'none';
             document.getElementById('taskPlannerSection').style.display = 'flex';
 
-            console.log("Checking Notification API support and permission...");
+            console.log("Checking Notification API support and permission for final notification...");
             if ('Notification' in window && Notification.permission === 'granted') {
-                console.log("Notification API supported and permission granted. Attempting to create notification.");
+                console.log("Notification API supported and permission granted. Attempting to create final session notification.");
                 try {
                     const notification = new Notification('Session Completed!', {
                         body: 'Your 25-minute focus session is over. Click to review your tasks!',
@@ -463,8 +468,8 @@
             const D=document; 
             let gradientSection, leftGradientContainer, backgroundScroller, rightGradientContainer, largeJumper, smallJumper;
             let reviewTaskList, finishReviewButton;
-            let completedTaskNameSpan, completedTaskDurationSpan, taskYesButton, taskNoButton, taskSkipButtonModal, extraTimeInput, timeNeededSection; // Renamed taskSkipButton to taskSkipButtonModal
-            let skipTaskButton; // New permanent skip button
+            let completedTaskNameSpan, completedTaskDurationSpan, taskYesButton, taskNoButton, taskSkipButtonModal, extraTimeInput, timeNeededSection;
+            let skipTaskButton; 
 
             const segments=[
                 {start:'#5C0000',end:'#E50000'},{start:'#E65C00',end:'#FF9900'},
@@ -474,6 +479,7 @@
 
             let allColors=[],leftColors,rightColors,_sessionTasks=[];
             let lastTimestamp=0,animationFrameId;
+            let sessionTimeout = null; // Declare sessionTimeout here
             let leftContH=0,rightContH=0,largeJumperH=0,smallJumperH=0,largeSectH=0,smallSectH=0;
             let imagesLoadedCount=0;const totalImages=2;
 
@@ -481,9 +487,9 @@
             const totalSessionDuration = 25 * 60 * 1000;
             let elapsedSessionTime = 0;
             let currentTaskIndex = 0;
-            let currentTaskStartTime = 0; // The timestamp when the current task animation actually started
-            let currentTaskLogicalStartTimeMs = 0; // The cumulative session time when the current task is supposed to start based on its position in the queue
-            let currentTaskLogicalEndTimeMs = 0; // The cumulative session time when current task is supposed to end
+            let currentTaskStartTime = 0;
+            let currentTaskLogicalStartTimeMs = 0;
+            let currentTaskLogicalEndTimeMs = 0;
 
             function populateRightGradient(){
                 rightGradientContainer = D.getElementById('rightGradient'); 
@@ -577,7 +583,6 @@
                     startNextTaskAnimation();
                 };
 
-                // The "No, Need More Time" button in the modal
                 taskNoButton.onclick = () => {
                     timeNeededSection.classList.remove('hidden');
                     taskNoButton.textContent = "Confirm Time Needed";
@@ -589,7 +594,6 @@
                     };
                 };
 
-                // The "Skip Task" button in the modal
                 taskSkipButtonModal.onclick = () => { 
                     task.completed = false;
                     task.timeNeeded = 0;
@@ -609,40 +613,35 @@
             function startNextTaskAnimation() {
                 currentTaskIndex++;
                 if (currentTaskIndex < _sessionTasks.length) {
-                    // Calculate the new logical start time for the next task
                     currentTaskLogicalStartTimeMs = 0;
                     for (let i = 0; i < currentTaskIndex; i++) {
                         currentTaskLogicalStartTimeMs += _sessionTasks[i].duration * 60 * 1000;
                     }
                     currentTaskLogicalEndTimeMs = currentTaskLogicalStartTimeMs + (_sessionTasks[currentTaskIndex].duration * 60 * 1000);
 
-                    // To ensure smooth transition, update elapsedSessionTime to match the logical start of the next task
                     elapsedSessionTime = currentTaskLogicalStartTimeMs; 
-                    lastTimestamp = performance.now(); // Reset lastTimestamp for accurate dt from this new point
+                    lastTimestamp = performance.now(); 
 
-                    // Update skip button text/state
                     updateSkipButtonState();
-                    animationFrameId = requestAnimationFrame(animate); // Resume animation
+                    animationFrameId = requestAnimationFrame(animate);
                 } else {
                     console.log("All individual tasks in sequence have finished. Animation will continue until 25-minute session ends.");
-                    // At this point, the skip button should become an "End Session" button or be disabled.
                     updateSkipButtonState();
                 }
             }
 
             function updateSkipButtonState() {
-                if (currentTaskIndex < _sessionTasks.length - 1) { // If there's a next task
+                if (currentTaskIndex < _sessionTasks.length - 1) {
                     skipTaskButton.textContent = "Next Task";
                     skipTaskButton.disabled = false;
-                } else if (currentTaskIndex === _sessionTasks.length - 1) { // If this is the last task
+                } else if (currentTaskIndex === _sessionTasks.length - 1) {
                     skipTaskButton.textContent = "End Session";
                     skipTaskButton.disabled = false;
-                } else { // All tasks are logically done (but session timer might still be running)
-                    skipTaskButton.textContent = "Session Running..."; // Or "Session Over" if 25 min elapsed
+                } else {
+                    skipTaskButton.textContent = "Session Running...";
                     skipTaskButton.disabled = true;
                 }
 
-                // If the session is almost over (e.g., last 30 seconds), disable the skip button
                 if (totalSessionDuration - elapsedSessionTime < 30 * 1000 && elapsedSessionTime < totalSessionDuration) {
                     skipTaskButton.disabled = true;
                     skipTaskButton.textContent = "Ending Soon...";
@@ -668,40 +667,34 @@
                 completedTaskDurationSpan = D.getElementById('completedTaskDuration');
                 taskYesButton = D.getElementById('taskYesButton');
                 taskNoButton = D.getElementById('taskNoButton');
-                taskSkipButtonModal = D.getElementById('taskSkipButtonModal'); // Get the modal's skip button
+                taskSkipButtonModal = D.getElementById('taskSkipButtonModal');
                 extraTimeInput = D.getElementById('extraTimeInput');
                 timeNeededSection = D.getElementById('timeNeededSection');
 
-                skipTaskButton = D.getElementById('skipTaskButton'); // Get the new permanent skip button
+                skipTaskButton = D.getElementById('skipTaskButton');
                 skipTaskButton.onclick = () => {
-                    // Manually trigger completion for the current task before advancing
                     if (currentTaskIndex < _sessionTasks.length) {
                         const currentTask = _sessionTasks[currentTaskIndex];
-                        currentTask.completed = false; // Assume skipped unless explicitly marked done by modal
-                        currentTask.timeNeeded = 0; // No extra time recorded for a manual skip
+                        currentTask.completed = false;
+                        currentTask.timeNeeded = 0;
 
-                        // If modal is open, hide it
                         if (taskCompletionModalElement.style.display === 'flex') {
                             hideTaskCompletionModal();
                         }
                         
-                        // Fast-forward elapsedSessionTime to the end of the current task's duration
                         let cumulativeDurationUpToCurrent = 0;
                         for (let i = 0; i <= currentTaskIndex; i++) {
                             cumulativeDurationUpToCurrent += _sessionTasks[i].duration;
                         }
                         elapsedSessionTime = cumulativeDurationUpToCurrent * 60 * 1000;
-                        lastTimestamp = performance.now(); // Reset timestamp for smooth continuation
+                        lastTimestamp = performance.now();
 
-                        startNextTaskAnimation(); // Move to the next task or end session
+                        startNextTaskAnimation();
                     } else {
-                        // If all tasks are already processed, and user clicks "End Session"
                         if (elapsedSessionTime < totalSessionDuration) {
-                            // If session still running, fast-forward to end of 25 minutes
                             elapsedSessionTime = totalSessionDuration;
-                            handleSessionCompletion(_sessionTasks); // Trigger session end
+                            handleSessionCompletion(_sessionTasks);
                         } else {
-                            // Session already ended, button should be disabled
                             console.log("Skip button clicked, but session already over.");
                         }
                     }
@@ -747,12 +740,19 @@
                 currentTaskIndex = 0;
                 elapsedSessionTime = 0;
                 currentTaskStartTime = performance.now();
-                currentTaskLogicalStartTimeMs = 0; // Initialize for the first task
-                currentTaskLogicalEndTimeMs = (_sessionTasks[0]?.duration || 0) * 60 * 1000; // Initialize for first task
+                currentTaskLogicalStartTimeMs = 0;
+                currentTaskLogicalEndTimeMs = (_sessionTasks[0]?.duration || 0) * 60 * 1000; 
 
                 lastTimestamp=performance.now();
-                updateSkipButtonState(); // Set initial state of skip button
+                updateSkipButtonState();
                 animationFrameId=requestAnimationFrame(animate);
+
+                // Set a timeout for the full 25-minute session
+                if (sessionTimeout) clearTimeout(sessionTimeout); // Clear any old timeouts if re-initializing
+                sessionTimeout = setTimeout(() => {
+                    console.log("Session Timeout triggered after 25 minutes. Calling handleSessionCompletion.");
+                    handleSessionCompletion(_sessionTasks);
+                }, totalSessionDuration);
             }
 
             function animate(ts){
@@ -761,13 +761,18 @@
 
                 elapsedSessionTime += dt;
 
-                // Overall 25-minute session completion check (main timer)
-                if(elapsedSessionTime >= totalSessionDuration) {
-                    handleSessionCompletion(_sessionTasks);
-                    return; // Stop animation loop
+                // Log every second for debugging notification timing
+                if (Math.floor(elapsedSessionTime / 1000) !== Math.floor((elapsedSessionTime - dt) / 1000)) {
+                    console.log(`[Animation Progress] Elapsed: ${(elapsedSessionTime / 1000).toFixed(0)}s / ${(totalSessionDuration / 1000).toFixed(0)}s`);
                 }
 
-                // Update jumper and background based on total elapsed session time
+                // Overall 25-minute session completion check (main timer)
+                if(elapsedSessionTime >= totalSessionDuration) {
+                    console.log("[Animation Logic] 25-minute total session duration reached in animate loop.");
+                    handleSessionCompletion(_sessionTasks);
+                    return; 
+                }
+
                 let scrollOffset_large = -elapsedSessionTime * scrollSpeed_large;
                 let currentY_small = (elapsedSessionTime * speed_small) % (rCH + smallJumperH);
                 if (currentY_small < 0) currentY_small += (rCH + smallJumperH);
@@ -781,16 +786,14 @@
                         if (!_sessionTasks[currentTaskIndex].promptedForCompletion) {
                             console.log(`Task end detected for: ${_sessionTasks[currentTaskIndex].name}`);
                             _sessionTasks[currentTaskIndex].promptedForCompletion = true;
-                            cancelAnimationFrame(animationFrameId); // Pause animation
+                            cancelAnimationFrame(animationFrameId);
                             showTaskCompletionModal(_sessionTasks[currentTaskIndex]);
-                            updateSkipButtonState(); // Update button state after modal shows
-                            return; // Stop current animation frame, wait for user interaction
+                            updateSkipButtonState();
+                            return; 
                         }
                     }
                 } else {
-                    // All individual tasks have been processed (via time or skip button)
-                    // Animation continues until 25-minute session ends.
-                    // The skip button state should reflect "End Session" or "Session Running..."
+                    console.log("All individual tasks have been processed. Animation continues until 25-minute session ends.");
                     updateSkipButtonState();
                 }
                 // --- End Individual Task Completion Check Logic ---
@@ -804,7 +807,7 @@
 
             function start(tasksData){
                 _sessionTasks = tasksData;
-                _sessionTasks.forEach(task => task.promptedForCompletion = false); // Reset flag for new session
+                _sessionTasks.forEach(task => task.promptedForCompletion = false); 
 
                 segments.forEach(seg=>{allColors=allColors.concat(generateGradient(seg.start,seg.end,5))});
                 leftColors=allColors;rightColors=allColors;
@@ -833,7 +836,7 @@
                     if(imagesLoadedCount===totalImages)initializeAnimation();else{largeJumper.onload=imageLoadHandler;smallJumper.onload=imageLoadHandler()}
                 }
             }
-            return {start, onResize, animationFrameId, showSessionReviewModal, hideSessionReviewModal};
+            return {start, onResize, animationFrameId, showSessionReviewModal, hideSessionReviewModal, sessionTimeout};
         })();
 
         document.addEventListener('DOMContentLoaded',()=>{{
